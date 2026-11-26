@@ -87,6 +87,10 @@ flowchart TB
 
 Essa estrutura é apenas o planejamento arquitetural. Não foram implementados nesta issue PostgreSQL, ORM, variáveis de ambiente, migrations, API REST completa, autenticação, criptografia, assinatura/verificação de PDFs, CORS completo ou deploy.
 
+## Contratos REST
+
+As convenÃ§Ãµes HTTP, os status previstos e o contrato detalhado do health check estÃ£o em [`docs/API_REST.md`](docs/API_REST.md). O endpoint atual Ã© deliberadamente pequeno; nÃ£o hÃ¡ endpoints fictÃ­cios de usuÃ¡rios, documentos ou autenticaÃ§Ã£o.
+
 ## Processo de desenvolvimento
 
 Cada requisito deve ser trabalhado em sua própria branch e issue, com commits terminados em `Ref #ID`, revisão por Pull Request e merge posterior na `main`. Esta entrega é exclusiva do RNF-01 / Issue #67 e não altera o repositório do frontend.
