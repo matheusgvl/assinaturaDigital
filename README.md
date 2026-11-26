@@ -89,7 +89,7 @@ Essa estrutura é apenas o planejamento arquitetural. Não foram implementados n
 
 ## Contratos REST
 
-As convenÃ§Ãµes HTTP, os status previstos e o contrato detalhado do health check estÃ£o em [`docs/API_REST.md`](docs/API_REST.md). O endpoint atual Ã© deliberadamente pequeno; nÃ£o hÃ¡ endpoints fictÃ­cios de usuÃ¡rios, documentos ou autenticaÃ§Ã£o.
+HTTP conventions, expected statuses, and the detailed health-check contract are documented in [`docs/API_REST.md`](docs/API_REST.md). The current endpoint is intentionally small; no fictitious user, document, or authentication endpoints are exposed.
 
 ## Processo de desenvolvimento
 
