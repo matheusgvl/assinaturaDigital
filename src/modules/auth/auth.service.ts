@@ -81,7 +81,7 @@ export class AuthService {
     userAgent: string | undefined,
     ip: string,
   ): Promise<{ accessToken: string; refreshToken: string; user: AuthenticatedUser }> {
-    await this.rateLimit.assertAllowed(dto.email, ip);
+    await this.rateLimit.consumeAttempt(dto.email, ip);
     const user = await this.users.findOne({ where: { email: dto.email } });
     const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
     const passwordMatches = await verifyPassword(dto.password, passwordHash);
@@ -95,7 +95,6 @@ export class AuthService {
         }
         await this.users.save(user);
       }
-      await this.rateLimit.recordFailure(dto.email, ip);
       throw authError();
     }
 

@@ -43,6 +43,8 @@ describe('authentication flow (integration)', () => {
   let app: INestApplication;
   let previousKeys: { privateKey: string | undefined; publicKey: string | undefined };
 
+  jest.setTimeout(30000);
+
   beforeAll(async () => {
     previousKeys = configureJwtKeys();
     const moduleFixture = await Test.createTestingModule({
@@ -272,5 +274,35 @@ describe('authentication flow (integration)', () => {
       code: 'API_001',
       message: 'Too many login attempts',
     });
+  });
+
+  it('keeps the IP login limit atomic under concurrent attempts', async () => {
+    await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
+    const responses = await Promise.all(
+      Array.from({ length: 40 }, (_, attempt) =>
+        request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email: `concurrent-ip-${attempt}@example.com`, password: 'Wrong-password9' }),
+      ),
+    );
+
+    expect(responses.filter(({ status }) => status === 401)).toHaveLength(30);
+    expect(responses.filter(({ status }) => status === 429)).toHaveLength(10);
+    expect(responses.some(({ status }) => status >= 500)).toBe(false);
+  });
+
+  it('keeps the account login limit independent from the IP limit', async () => {
+    await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" IN ($1, $2)', ['account', 'ip']);
+    const responses = await Promise.all(
+      Array.from({ length: 25 }, () =>
+        request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email: 'same-account@example.com', password: 'Wrong-password9' }),
+      ),
+    );
+
+    expect(responses.filter(({ status }) => status === 401)).toHaveLength(20);
+    expect(responses.filter(({ status }) => status === 429)).toHaveLength(5);
+    expect(responses.some(({ status }) => status >= 500)).toBe(false);
   });
 });
