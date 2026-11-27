@@ -10,7 +10,7 @@ import { SignDocumentDto } from './document.dto';
 import { DocumentSignature } from './entities/document-signature.entity';
 import { DocumentRateLimitService } from './document-rate-limit.service';
 import { PdfFileService } from './pdf-file.service';
-import { PdfSignatureService } from './pdf-signature.service';
+import { PdfSandboxService } from './pdf-sandbox.service';
 import { SigningKeyService } from './signing-key.service';
 
 const SIGNING_FAILURE = 'Unable to sign this PDF';
@@ -24,7 +24,7 @@ export class DocumentsService {
     private readonly signatures: Repository<DocumentSignature>,
     private readonly files: PdfFileService,
     private readonly keys: SigningKeyService,
-    private readonly pdfs: PdfSignatureService,
+    private readonly pdfs: PdfSandboxService,
     private readonly rateLimit: DocumentRateLimitService,
   ) {}
 
@@ -84,7 +84,7 @@ export class DocumentsService {
   async verify(file: Express.Multer.File, ip: string) {
     await this.rateLimit.consume(ip);
     const pdf = this.files.validate(file);
-    const inspection = this.pdfs.inspect(pdf);
+    const inspection = await this.pdfs.inspect(pdf);
     if (!inspection.present) return { status: 'not_found' as const };
     if (!inspection.valid) return { status: 'tampered' as const };
     const record = await this.signatures.findOne({
