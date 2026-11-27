@@ -27,6 +27,7 @@ import {
   LoginDto,
   RegisterDto,
   TotpSetupConfirmationDto,
+  TotpDisableDto,
   TotpLoginVerificationDto,
   MarkSecurityAlertsReadDto,
 } from './auth.dto';
@@ -206,7 +207,7 @@ export class AuthController {
     @Req() request: AuthenticatedRequest,
     @Body() dto: ChangePasswordDto,
   ): Promise<void> {
-    await this.auth.changePassword(request.user.id, dto);
+    await this.auth.changePassword(request.user.id, dto, request.ip ?? 'unknown', request.get('User-Agent'));
   }
 
   @Post('totp/setup')
@@ -221,7 +222,20 @@ export class AuthController {
     @Req() request: AuthenticatedRequest,
     @Body() dto: TotpSetupConfirmationDto,
   ) {
-    return this.totpEnrollment.confirmSetup(request.user.id, dto);
+    return this.totpEnrollment.confirmSetup(request.user.id, dto, passkeyContext(request));
+  }
+
+  @Post('totp/disable')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async disableTotp(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: TotpDisableDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.totpEnrollment.disable(request.user.id, dto, passkeyContext(request));
+    response.clearCookie(REFRESH_TOKEN_COOKIE, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/api/v1/auth' });
+    response.clearCookie(CSRF_TOKEN_COOKIE, { httpOnly: false, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
   }
 
   @Post('totp/login/verify')

@@ -3,15 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import QRCode from 'qrcode';
 import { randomUUID } from 'node:crypto';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { API_ERROR_CODES } from '../../common/http/errors/api-error-codes';
 import { ApiException } from '../../common/http/errors/api.exception';
 import { User } from './entities/user.entity';
 import { TotpSecret } from './entities/totp-secret.entity';
 import { createOtpAuthUri, generateTotpSecret, verifyTotp } from './totp';
 import { decryptTotpSecret, encryptTotpSecret } from './totp-crypto';
-import type { TotpSetupConfirmationDto } from './auth.dto';
+import type { TotpDisableDto, TotpSetupConfirmationDto } from './auth.dto';
 import { TotpRecoveryService } from './totp-recovery.service';
+import { TotpAlertService } from './totp-alert.service';
+import { LoginRateLimitService } from './login-rate-limit.service';
+import { verifyPassword } from './password-hasher';
+import { TotpRecoveryCode } from './entities/totp-recovery-code.entity';
+import { TotpLoginTransaction } from './entities/totp-login-transaction.entity';
+import { Session } from './entities/session.entity';
 
 const SETUP_TTL_MS = 10 * 60 * 1000;
 const MAX_SETUP_ATTEMPTS = 5;
@@ -43,6 +49,8 @@ export class TotpEnrollmentService {
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
     private readonly recovery: TotpRecoveryService,
+    private readonly alerts: TotpAlertService,
+    private readonly rateLimit: LoginRateLimitService,
   ) {}
 
   /** Cria um segredo temporário e retorna somente a imagem QR de enrollment. */
@@ -89,6 +97,7 @@ export class TotpEnrollmentService {
   async confirmSetup(
     userId: string,
     dto: TotpSetupConfirmationDto,
+    context?: { ip: string; userAgent?: string },
   ): Promise<{ codes: string[] }> {
     let recoveryCodes: string[] = [];
     const confirmed = await this.dataSource.transaction(async (manager) => {
@@ -134,11 +143,48 @@ export class TotpEnrollmentService {
       await secrets.save(setup);
       await users.update({ id: userId }, { totpEnabled: true });
       recoveryCodes = await this.recovery.replaceCodes(manager, userId);
+      await this.alerts.create(manager, userId, 'totp_enabled', context?.ip, context?.userAgent);
       return true;
     });
 
     if (!confirmed) throw invalidTotp();
     return { codes: recoveryCodes };
+  }
+
+  /** Remove TOTP somente após revalidar senha e código atual e revoga sessões. */
+  async disable(
+    userId: string,
+    dto: TotpDisableDto,
+    context: { ip: string; userAgent?: string },
+  ): Promise<void> {
+    const candidate = await this.users.findOne({ where: { id: userId } });
+    if (!candidate) throw invalidTotp();
+    await this.rateLimit.consumeAttempt(candidate.email, context.ip);
+    const disabled = await this.dataSource.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const user = await users.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      const secret = user ? await manager.getRepository(TotpSecret).findOne({
+        where: { userId, confirmedAt: Not(IsNull()) }, lock: { mode: 'pessimistic_write' },
+      }) : null;
+      let valid = Boolean(user?.totpEnabled && secret && await verifyPassword(dto.currentPassword, user.passwordHash));
+      if (valid && secret) {
+        try {
+          valid = verifyTotp(decryptTotpSecret(secret, this.masterKey()), dto.code, Date.now());
+        } catch {
+          valid = false;
+        }
+      }
+      if (!valid || !user) return false;
+      await users.update({ id: userId }, { totpEnabled: false });
+      await manager.getRepository(TotpSecret).delete({ userId });
+      await manager.getRepository(TotpRecoveryCode).delete({ userId });
+      await manager.getRepository(TotpLoginTransaction).delete({ userId });
+      await manager.getRepository(Session).update({ userId, revokedAt: IsNull() }, { revokedAt: new Date() });
+      await this.alerts.create(manager, userId, 'totp_disabled', context.ip, context.userAgent);
+      return true;
+    });
+    if (!disabled) throw invalidTotp();
+    await this.rateLimit.clearAccount(candidate.email);
   }
 
   private masterKey(): Buffer {

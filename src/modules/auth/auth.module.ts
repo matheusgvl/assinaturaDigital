@@ -16,6 +16,7 @@ import { TotpRecoveryService } from './totp-recovery.service';
 import { TotpLoginTransaction } from './entities/totp-login-transaction.entity';
 import { TotpLoginService } from './totp-login.service';
 import { SecurityAlert } from './entities/security-alert.entity';
+import { KnownLoginIp } from './entities/known-login-ip.entity';
 import { TotpAlertService } from './totp-alert.service';
 import { PasskeyService } from './passkey.service';
 import { SigningKeysModule } from '../documents/signing-keys.module';
@@ -31,6 +32,7 @@ import { SigningKeysModule } from '../documents/signing-keys.module';
       TotpRecoveryCode,
       TotpLoginTransaction,
       SecurityAlert,
+      KnownLoginIp,
     ]),
   ],
   controllers: [AuthController],
