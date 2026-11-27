@@ -4,7 +4,7 @@
 
 O backend usa PostgreSQL como banco relacional de infraestrutura. A integração desta issue prepara a conexão para as funcionalidades de domínio, sem armazenar PDFs no banco e sem criar entidades ou migrations antecipadamente.
 
-O status do RNF-04 é **parcial nesta branch**: a infraestrutura e a conexão real estão implementadas, enquanto o modelo relacional e as migrations continuam reservados para as issues #74–#76. Não há execução automática de migrations no startup.
+O status do RNF-04 é **parcial quanto ao domínio nesta branch**: a infraestrutura, o `DataSource` compartilhado e o mecanismo de migrations estão implementados, mas não há modelo relacional de negócio justificável neste escopo. A fixture do RNF-09 fica fora do caminho de produção e serve somente à homologação automatizada. Não há execução automática de migrations no startup.
 
 ## Arquitetura
 
@@ -16,6 +16,9 @@ AppModule
 ├── DatabaseModule
 │   └── TypeOrmModule.forRootAsync
 │       └── database-options.factory.ts → ConfigService
+├── database/data-source.ts → CLI TypeORM (sem PORT/Nest HTTP)
+├── database/migrations/   → caminho reservado para migrations de produção
+├── test/migrations/       → DataSource e fixture de homologação
 └── HealthModule
 ```
 
@@ -41,11 +44,13 @@ Em ambiente com TLS, use `DATABASE_SSL=true`. O código configura `rejectUnautho
 
 ## Opções de conexão
 
-As opções ficam centralizadas em `src/database/database-options.factory.ts`:
+As opções ficam centralizadas em `src/database/database-options.factory.ts` e são reutilizadas pela aplicação e pela CLI:
 
 - `synchronize: false`;
 - `migrationsRun: false`;
 - `dropSchema: false`;
+- tabela de histórico `typeorm_migrations`;
+- migrations de produção localizadas por `src/database/migrations/*.{js,ts}`;
 - pool limitado a 10 conexões;
 - timeout de conexão de 5 segundos;
 - uma tentativa de retry com atraso de 1 segundo;
@@ -55,7 +60,9 @@ Nenhuma senha, URL ou configuração completa é escrita em logs pela integraç�
 
 ## Dados e migrations
 
-PDFs não são armazenados no PostgreSQL. Esta etapa não cria tabelas de negócio, não cria entidades e não executa migrations. As issues #74–#76 devem definir o modelo, arquivos de migration, estratégia de rollback e os testes de persistência antes de o RNF-04 ser considerado integralmente concluído.
+PDFs não são armazenados no PostgreSQL. A aplicação não cria tabelas por sincronização e não executa migrations no startup. O diretório `src/database/migrations` está preparado para migrations de produção, mas permanece sem tabelas de negócio até que o modelo seja definido. A fixture `test/migrations/fixtures/1795789271721-Rnf09SchemaFixture.ts` cria somente `rnf09_migration_fixture` em ambiente de homologação.
+
+O mecanismo real, histórico, segunda execução e reversão da fixture estão documentados em [`RNF-09-MIGRATIONS.md`](RNF-09-MIGRATIONS.md). As Issues #75 e #76 devem formalizar, respectivamente, a proibição operacional de mudanças manuais e a política completa de sequência/upgrade/downgrade.
 
 ## Testes de integração
 
@@ -70,6 +77,8 @@ PDFs não são armazenados no PostgreSQL. Esta etapa não cria tabelas de negóc
 
 Os testes de configuração também verificam URL inválida, valores de TLS, `synchronize`, `migrationsRun`, `dropSchema`, pool, timeout e ausência de `rejectUnauthorized: false`.
 
+Os testes do RNF-09 comprovam banco vazio, inicialização sem sincronização, aplicação real da fixture, histórico, idempotência, configuração inválida, rollback transacional de uma migration com falha e encerramento do `DataSource`.
+
 ## Evidências executadas
 
 Em 27/11/2026, a validação foi executada com um container efêmero `postgres:16-alpine`, publicado somente em `127.0.0.1:55432`, com banco e senha sintéticos gerados para a sessão. O container foi removido ao final e nenhuma credencial foi gravada no repositório.
@@ -80,12 +89,19 @@ Em 27/11/2026, a validação foi executada com um container efêmero `postgres:1
 | `npx tsc --noEmit` | aprovado |
 | `npm run lint` | aprovado |
 | `npm run build` | aprovado |
-| `npm run test` | 6 suítes e 42 testes aprovados |
-| `npm run test:e2e` | 3 suítes e 11 testes aprovados |
+| `npm run test` | 7 suítes e 48 testes aprovados |
+| `npm run test:e2e` | 4 suítes e 17 testes aprovados |
 | `git diff --check` | aprovado |
 | startup real válido | processo iniciou e `GET /health` retornou HTTP 200 com contrato esperado |
 | startup real sem `PORT` | processo encerrou com código 1 antes de escutar |
-| `--detectOpenHandles` | 3 suítes e 11 testes aprovados, sem handle persistente reportado |
+| `--detectOpenHandles` | 4 suítes e 17 testes aprovados, sem handle persistente reportado |
+| `migration:run` em banco vazio | tabela `typeorm_migrations` criada; nenhuma tabela de fixture/negócio criada |
+| `migration:test:run` | fixture criada e registrada no histórico |
+| segunda `migration:test:run` | nenhuma migration pendente; histórico permaneceu com 1 registro |
+| `migration:test:show` | `[X] 1 Rnf09SchemaFixture1795789271721` após execução |
+| `migration:test:revert` | fixture removida do banco efêmero |
+| `migration:show:compiled` | executado com sucesso a partir de `dist/database/data-source.js` |
+| configuração CLI inválida | ausência de `DATABASE_URL` e `DATABASE_SSL=yes` terminaram com código 1 |
 
 O Jest padrão emitiu um aviso transitório de handles assíncronos após os testes E2E negativos, embora tenha terminado com código 0; a execução diagnóstica com `--detectOpenHandles` não encontrou handle persistente. Esse comportamento fica registrado para acompanhamento, sem usar `forceExit` para mascará-lo.
 

@@ -26,7 +26,7 @@ flowchart LR
 
 ```bash
 npm ci
-cp .env.example .env
+test -f .env || cp .env.example .env
 npm run start:dev
 ```
 
@@ -41,6 +41,8 @@ npm run build       # compilação TypeScript
 npm run lint        # ESLint
 npm run test        # testes unitários
 npm run test:e2e    # testes HTTP de integração
+npm run migration:show
+npm run migration:run
 ```
 
 ## Endpoint provisório
@@ -63,7 +65,8 @@ src/
 ├── main.ts                 # inicialização independente do servidor
 ├── app.module.ts           # composição do módulo principal
 ├── config/                  # validação de PORT e PostgreSQL
-├── database/                # opções e módulo TypeORM
+├── database/                # opções, módulo e DataSource TypeORM
+│   └── migrations/          # migrations de produção versionadas
 └── modules/
     └── health/
         ├── health.module.ts
@@ -72,7 +75,8 @@ src/
         └── health.service.spec.ts
 test/
 ├── health.e2e-spec.ts       # contrato HTTP e rota inexistente
-└── database.e2e-spec.ts     # conexão, falhas de startup e encerramento do pool
+├── database.e2e-spec.ts      # conexão, falhas de startup e encerramento do pool
+└── migrations.e2e-spec.ts    # criação e histórico da fixture PostgreSQL
 ```
 
 Controllers recebem requisições e delegam aos services. Services concentram regras de domínio e não conhecem a interface visual. A infraestrutura PostgreSQL é criada pelo `DatabaseModule`, que recebe opções somente do `ConfigService` e não registra URLs ou credenciais. CORS, headers, rate limiting, CSRF, autenticação e tratamento padronizado de erros serão tratados nas issues próprias.
@@ -90,7 +94,11 @@ flowchart TB
   I --> DB[(PostgreSQL — RNF-04)]
 ```
 
-O RNF-04 implementa a conexão de infraestrutura com PostgreSQL usando `@nestjs/typeorm`, TypeORM e `pg`. PDFs não são armazenados no banco nesta etapa. Entidades, migrations e o modelo de domínio pertencem às issues futuras #74–#76; por isso, esta implementação não executa migrations automaticamente e não habilita `synchronize`.
+O RNF-04 implementa a conexão de infraestrutura com PostgreSQL usando `@nestjs/typeorm`, TypeORM e `pg`. O RNF-09 adiciona o `DataSource` compartilhado e o mecanismo de migrations versionadas. PDFs não são armazenados no banco nesta etapa. Ainda não há entidades ou migrations de negócio; a fixture de homologação fica fora do caminho de produção para não inventar tabelas.
+
+## Migrations versionadas
+
+O fluxo de migrations, a fixture de homologação, os comandos da CLI e as evidências reais estão documentados em [`docs/RNF-09-MIGRATIONS.md`](docs/RNF-09-MIGRATIONS.md). A aplicação mantém `synchronize`, `migrationsRun` e `dropSchema` desativados; migrations são executadas somente por comando explícito.
 
 ## Contratos REST
 
@@ -105,11 +113,13 @@ The current environment configuration is documented in [`docs/RNF-05-CONFIG.md`]
 O arquivo versionado [`.env.example`](.env.example) documenta `PORT`, `DATABASE_URL` e `DATABASE_SSL`, sem credenciais reais. Para configurar uma cópia local somente quando ainda não existir um `.env`:
 
 ```bash
-cp .env.example .env
+test -f .env || cp .env.example .env
 ```
 
 ```powershell
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) {
+  Copy-Item .env.example .env
+}
 ```
 
 O `.env.example` serve como referência compartilhada; o `.env` contém a configuração local e não deve ser versionado. `PORT` e `DATABASE_URL` devem ser válidos antes da inicialização; valores ausentes ou inválidos fazem o backend recusar o startup. Sempre que uma funcionalidade introduzir uma nova variável, a mesma branch deve atualizar o exemplo e a documentação correspondente, sem inserir valores reais.
