@@ -12,15 +12,16 @@
 
 ## Última ação concluída
 
-Na branch `feat/issue-63-pdf-structural-validation`, `npx tsc --noEmit`, `npm run lint` e `npm run build` concluíram com êxito após a implementação de análise estrutural de PDF. A sequência seguinte de build da imagem e E2E foi interrompida externamente e precisa ser repetida antes de qualquer alegação de aprovação.
+Os PRs encadeados de PDF foram publicados sem merge automático: [#145](https://github.com/matheusgvl/assinaturaDigital/pull/145) para #59, [#146](https://github.com/matheusgvl/assinaturaDigital/pull/146) para #62 e [#147](https://github.com/matheusgvl/assinaturaDigital/pull/147) para #63. O último usa #146 como base e #146 usa #145, para que cada revisão contenha somente a issue correspondente.
+
+No commit `6cfee61`, `npx tsc --noEmit`, `npm run lint`, `npm run build`, `git diff --check`, o build da imagem e os E2E de documentos e sandbox foram concluídos. O E2E passou com 2 suítes e 10 testes no banco PostgreSQL isolado. A imagem foi identificada como `assinatura-pdf-worker:local`.
 
 ## Trabalho pendente imediato
 
-1. Concluir os testes E2E de #62 e #63 no banco isolado e revisar eventuais falhas.
-2. Criar commits e PRs individuais para #59, #62 e #63 somente com evidências executadas.
-3. Concluir a implementação e os testes da auditoria #55 e dos campos #56 no worktree próprio.
-4. Implementar alertas de atividade #58 e validar migrations, rollback e reaplicação de #69 em banco descartável.
-5. Atualizar esta matriz, a revisão de segurança e os relatórios após cada bloco validado.
+1. Acompanhar checks e revisão dos PRs #145 a #147, sem mesclá-los antes de aprovação.
+2. Concluir a implementação e os testes da auditoria #55 e dos campos #56 no worktree próprio.
+3. Implementar alertas de atividade #58 e validar migrations, rollback e reaplicação de #69 em banco descartável.
+4. Atualizar esta matriz, a revisão de segurança e os relatórios após cada bloco validado.
 
 ## Restrições preservadas
 
