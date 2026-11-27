@@ -2,11 +2,13 @@
 
 ## Contrato atual
 
-`PORT` é a única variável de ambiente atualmente utilizada pelo backend e passou a ser obrigatória no startup.
+`PORT` e `DATABASE_URL` são obrigatórios no startup. `DATABASE_SSL` é opcional para desenvolvimento local, mas, quando informado, aceita somente `true` ou `false`.
 
 - Deve existir no ambiente carregado pelo processo ou no `.env`.
 - Deve ser um número inteiro entre `1` e `65535`.
 - Valores ausentes, vazios, não numéricos ou fora do intervalo fazem o `ConfigModule` lançar erro.
+- `DATABASE_URL` deve usar o esquema `postgres:` ou `postgresql:` e conter um nome de banco.
+- Valores ausentes ou inválidos de `DATABASE_URL` e `DATABASE_SSL` fazem o `ConfigModule` lançar erro.
 - O servidor não executa `listen` quando a validação falha.
 
 A validação é centralizada em `src/config/app.config.ts` e conectada ao `ConfigModule.forRoot({ validate })`. O `ConfigService` recebe somente a configuração já validada; não há fallback silencioso para configuração inválida.
@@ -23,19 +25,12 @@ Os testes cobrem:
 - limites válidos `1` e `65535`;
 - regressão do health check e da API HTTP.
 
-O arquivo `test/setup-env.ts` fornece apenas `PORT=3000` sintético para os testes que precisam construir o módulo NestJS. Os cenários inválidos chamam a função de validação diretamente, sem depender do ambiente da máquina.
+O arquivo `test/setup-env.ts` fornece `PORT=3000` sintético somente quando a variável não foi definida pelo processo. Valores explícitos são preservados e o valor original é restaurado ao final da suíte. Os testes que exigem PostgreSQL usam um banco isolado e não gravam credenciais no repositório.
 
 ## Limites
 
-Novas variáveis obrigatórias deverão ser adicionadas à função de validação, ao `.env.example`, à documentação e aos testes na mesma issue que introduzir a configuração. PostgreSQL, autenticação, chaves criptográficas e demais variáveis futuras não foram criados nesta issue.
+Novas variáveis obrigatórias deverão ser adicionadas à função de validação, ao `.env.example`, à documentação e aos testes na mesma issue que introduzir a configuração. As entidades, migrations e o modelo de domínio PostgreSQL ainda pertencem às issues #74–#76. PDFs não são armazenados no banco.
 
 ## Evidências executadas
 
-- `npm ci`: concluído.
-- `npx tsc --noEmit`: aprovado.
-- `npm run lint`: aprovado.
-- `npm run build`: aprovado.
-- Testes unitários: 27 aprovados.
-- Testes E2E: 4 aprovados.
-- Processo sem `PORT`: encerrou com código 1 antes de disponibilizar a API.
-- Processo com porta válida: iniciou em uma porta de teste e `GET /health` retornou HTTP 200 com o contrato existente.
+As evidências específicas desta implementação estão em [`docs/RNF-04-DATABASE.md`](RNF-04-DATABASE.md), incluindo o comando executado, o banco isolado usado e a classificação das migrations ainda pendentes.

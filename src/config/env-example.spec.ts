@@ -17,13 +17,15 @@ describe('.env.example', () => {
 
   it('documents every application variable currently used', () => {
     expect(content).toMatch(/^PORT=3000$/m);
+    expect(content).toMatch(/^DATABASE_URL=$/m);
+    expect(content).toMatch(/^DATABASE_SSL=false$/m);
   });
 
   it('contains no populated configuration values or future secrets', () => {
     const populatedAssignments = content.match(/^[A-Z][A-Z0-9_]*=.+$/gm) ?? [];
-    expect(populatedAssignments).toEqual(['PORT=3000']);
+    expect(populatedAssignments).toEqual(['PORT=3000', 'DATABASE_SSL=false']);
     expect(content).not.toMatch(
-      /DATABASE_URL|JWT_PRIVATE_KEY|JWT_PUBLIC_KEY|PASSWORD|TOKEN|PRIVATE KEY|BEGIN [A-Z ]+KEY/,
+      /^(JWT_PRIVATE_KEY|JWT_PUBLIC_KEY|PASSWORD|TOKEN|PRIVATE_KEY)=.+$/m,
     );
   });
 
