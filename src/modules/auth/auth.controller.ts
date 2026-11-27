@@ -54,7 +54,11 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.auth.login(dto, request.headers['user-agent']);
+    const result = await this.auth.login(
+      dto,
+      request.headers['user-agent'],
+      request.ip ?? 'unknown',
+    );
     setRefreshCookie(response, result.refreshToken);
     return { accessToken: result.accessToken, user: result.user };
   }
