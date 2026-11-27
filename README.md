@@ -130,6 +130,8 @@ A validação obrigatória na inicialização está documentada em [`docs/RNF-08
 
 A arquitetura, as opções de conexão e as evidências de integração do PostgreSQL estão documentadas em [`docs/RNF-04-DATABASE.md`](docs/RNF-04-DATABASE.md).
 
+A auditoria automatizada de dependências e a limitação atualmente observada no grafo npm estão em [`docs/REQ-66-DEPENDENCY-AUDIT.md`](docs/REQ-66-DEPENDENCY-AUDIT.md).
+
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
 
 ## Processo de desenvolvimento
