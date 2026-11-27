@@ -93,7 +93,7 @@ HTTP conventions, expected statuses, and the detailed health-check contract are 
 
 ## Configuração por ambiente
 
-The current environment configuration is documented in [`docs/RNF-05-CONFIG.md`](docs/RNF-05-CONFIG.md). Only `PORT` is currently used; it defaults locally to `3000` when absent. Credentials and future database/authentication settings are not created in this issue.
+The current environment configuration is documented in [`docs/RNF-05-CONFIG.md`](docs/RNF-05-CONFIG.md). Only `PORT` is currently used; it is required at startup and must be an integer between `1` and `65535`. Credentials and future database/authentication settings are not created in this issue.
 
 ## Arquivo `.env.example`
 
@@ -107,9 +107,11 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-O `.env.example` serve como referência compartilhada; o `.env` contém a configuração local e não deve ser versionado. A porta pode ser ajustada no `.env`; quando estiver vazia ou ausente, o backend usa `3000`. Sempre que uma funcionalidade introduzir uma nova variável, a mesma branch deve atualizar o exemplo e a documentação correspondente, sem inserir valores reais.
+O `.env.example` serve como referência compartilhada; o `.env` contém a configuração local e não deve ser versionado. A porta pode ser ajustada no `.env`, mas deve ser preenchida com um inteiro válido antes da inicialização. Valores ausentes ou inválidos fazem o backend recusar o startup. Sempre que uma funcionalidade introduzir uma nova variável, a mesma branch deve atualizar o exemplo e a documentação correspondente, sem inserir valores reais.
 
 A auditoria sanitizada de proteção e histórico está registrada em [`docs/RNF-07-AUDIT.md`](docs/RNF-07-AUDIT.md). O `.env.example` é a única exceção permitida ao padrão de ignorar arquivos de ambiente.
+
+A validação obrigatória na inicialização está documentada em [`docs/RNF-08-VALIDATION.md`](docs/RNF-08-VALIDATION.md).
 
 ## Processo de desenvolvimento
 
