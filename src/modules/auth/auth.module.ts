@@ -13,6 +13,8 @@ import { TotpSecret } from './entities/totp-secret.entity';
 import { TotpEnrollmentService } from './totp-enrollment.service';
 import { TotpRecoveryCode } from './entities/totp-recovery-code.entity';
 import { TotpRecoveryService } from './totp-recovery.service';
+import { TotpLoginTransaction } from './entities/totp-login-transaction.entity';
+import { TotpLoginService } from './totp-login.service';
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { TotpRecoveryService } from './totp-recovery.service';
       AccessTokenDenylist,
       TotpSecret,
       TotpRecoveryCode,
+      TotpLoginTransaction,
     ]),
   ],
   controllers: [AuthController],
@@ -33,6 +36,7 @@ import { TotpRecoveryService } from './totp-recovery.service';
     LoginRateLimitService,
     TotpEnrollmentService,
     TotpRecoveryService,
+    TotpLoginService,
   ],
   exports: [
     AuthService,
@@ -41,6 +45,7 @@ import { TotpRecoveryService } from './totp-recovery.service';
     JwtAuthGuard,
     TotpEnrollmentService,
     TotpRecoveryService,
+    TotpLoginService,
   ],
 })
 export class AuthModule {}

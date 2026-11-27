@@ -16,6 +16,7 @@ import {
   ChangePasswordDto,
   LoginDto,
   RegisterDto,
+  TotpLoginVerificationDto,
   type AuthenticatedUser,
 } from './auth.dto';
 import { AuthTokenService } from './auth-token.service';
@@ -23,6 +24,7 @@ import { LoginRateLimitService } from './login-rate-limit.service';
 import { AccessTokenDenylist } from './entities/access-token-denylist.entity';
 import { Session } from './entities/session.entity';
 import { User } from './entities/user.entity';
+import { TotpLoginService } from './totp-login.service';
 
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
 // O refresh token permanece utilizavel por no maximo sete dias, conforme REQ-19.
@@ -32,6 +34,14 @@ const LOCKOUT_MS = 15 * 60 * 1000;
 const GENERIC_AUTH_MESSAGE = 'Invalid credentials';
 const DUMMY_PASSWORD_HASH =
   '$argon2id$v=19$m=65536,t=3,p=4$WhqvQoik9/MM15Vt/YFRZA$AEuc3USo+mn1vN2yy4H0otBgilQBF7Ho++UAwOvpsNc';
+
+export type LoginResult =
+  | {
+      accessToken: string;
+      refreshToken: string;
+      user: AuthenticatedUser;
+    }
+  | { requiresSecondFactor: true; transactionId: string };
 
 function authError(): ApiException {
   return new ApiException(
@@ -89,11 +99,7 @@ export class AuthService {
     dto: LoginDto,
     userAgent: string | undefined,
     ip: string,
-  ): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    user: AuthenticatedUser;
-  }> {
+  ): Promise<LoginResult> {
     await this.rateLimit.consumeAttempt(dto.email, ip);
     const user = await this.users.findOne({ where: { email: dto.email } });
     const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
@@ -120,16 +126,47 @@ export class AuthService {
     await this.users.save(user);
     await this.rateLimit.clearAccount(dto.email);
 
-    // A future TOTP transaction must complete before an access token is
-    // created. Keeping this guard here prevents a partially enabled account
-    // from bypassing the second factor.
     if (user.totpEnabled) {
-      throw new ApiException(
-        API_ERROR_CODES.AUTHORIZATION,
-        HttpStatus.FORBIDDEN,
-        'Additional verification required',
-      );
+      return {
+        requiresSecondFactor: true,
+        transactionId: await this.totpLogin.createTransaction(
+          user.id,
+          ip,
+          userAgent,
+        ),
+      };
     }
+
+    return this.issueSession(user, userAgent, ip, now);
+  }
+
+  /** Emite a sessão somente após a transação de segundo fator ser consumida. */
+  async verifySecondFactor(
+    dto: TotpLoginVerificationDto,
+    userAgent: string | undefined,
+    ip: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: AuthenticatedUser;
+  }> {
+    const { userId } = await this.totpLogin.verify(dto, ip, userAgent);
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user || !user.totpEnabled) throw authError();
+    return this.issueSession(user, userAgent, ip, new Date(), true);
+  }
+
+  private async issueSession(
+    user: User,
+    userAgent: string | undefined,
+    ip: string,
+    now: Date,
+    secondFactorVerified = false,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: AuthenticatedUser;
+  }> {
 
     const authenticatedUser = { id: user.id, email: user.email };
     const refreshToken = randomBytes(32).toString('base64url');
@@ -144,6 +181,7 @@ export class AuthService {
           refreshTokenHash: hashRefreshToken(refreshToken),
           expiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS),
           revokedAt: null,
+          secondFactorVerifiedAt: secondFactorVerified ? now : null,
           userAgent: userAgent?.slice(0, 512) ?? null,
         }),
       );
@@ -180,6 +218,12 @@ export class AuthService {
         .getOne();
       if (!session || !session.user || session.expiresAt <= now) return null;
 
+      if (session.user.totpEnabled && !session.secondFactorVerifiedAt) {
+        session.revokedAt = now;
+        await sessions.save(session);
+        return null;
+      }
+
       if (session.revokedAt) {
         // Reuso de um token rotacionado invalida toda a familia, inclusive a
         // sessao que teria sido emitida pelo primeiro pedido concorrente.
@@ -206,6 +250,7 @@ export class AuthService {
           refreshTokenHash: hashRefreshToken(rotatedToken),
           expiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS),
           revokedAt: null,
+          secondFactorVerifiedAt: session.secondFactorVerifiedAt,
           userAgent: userAgent?.slice(0, 512) ?? null,
         }),
       );
@@ -337,5 +382,6 @@ export class AuthService {
     private readonly tokens: AuthTokenService,
     private readonly rateLimit: LoginRateLimitService,
     private readonly dataSource: DataSource,
+    private readonly totpLogin: TotpLoginService,
   ) {}
 }

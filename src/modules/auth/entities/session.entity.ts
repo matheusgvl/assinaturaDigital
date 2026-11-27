@@ -37,6 +37,9 @@ export class Session {
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
   revokedAt!: Date | null;
 
+  @Column({ name: 'second_factor_verified_at', type: 'timestamptz', nullable: true })
+  secondFactorVerifiedAt!: Date | null;
+
   @Column({ name: 'user_agent', type: 'text', nullable: true })
   userAgent!: string | null;
 
