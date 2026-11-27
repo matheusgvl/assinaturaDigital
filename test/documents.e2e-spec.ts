@@ -142,4 +142,28 @@ describe('document signing flow (integration)', () => {
         expect(JSON.stringify(body)).not.toContain('JavaScript');
       });
   });
+
+  it('rate-limits repeated public verification requests per IP', async () => {
+    await app.get(DataSource).query(
+      'DELETE FROM "auth_rate_limits" WHERE "scope" = $1',
+      ['document_verify'],
+    );
+    const unsignedPdf = Buffer.from('%PDF-1.7\n%%EOF');
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/documents/verify')
+        .attach('file', unsignedPdf, 'unsigned.pdf')
+        .expect(201);
+    }
+    await request(app.getHttpServer())
+      .post('/api/v1/documents/verify')
+      .attach('file', unsignedPdf, 'unsigned.pdf')
+      .expect(429)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          code: 'API_001',
+          message: 'Too many verification requests',
+        });
+      });
+  });
 });

@@ -35,7 +35,7 @@ As rotas ficam sob `/api/v1/auth`:
 - `POST /api/v1/documents/sign` (`200`): exige Bearer token e recebe multipart `file`, `page`, `x` e `y`; retorna somente o PDF assinado.
 - `POST /api/v1/documents/verify` (`201`): recebe multipart `file` sem autenticação e retorna `valid`, `tampered` ou `not_found`.
 
-Uploads são validados por limite de 20 MiB, magic number `%PDF-` e rejeição de ações JavaScript/AA. Os bytes não são persistidos; somente hash, identidade da assinatura e material de chave cifrado permanecem no PostgreSQL.
+Uploads são validados por limite de 20 MiB, magic number `%PDF-` e rejeição de ações JavaScript/AA. A verificação pública aplica limite de 30 requisições por IP em janela de 15 minutos. Os bytes não são persistidos; somente hash, identidade da assinatura e material de chave cifrado permanecem no PostgreSQL.
 
 ## Convenções REST
 

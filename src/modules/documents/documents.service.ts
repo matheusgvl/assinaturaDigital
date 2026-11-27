@@ -7,6 +7,7 @@ import { ApiException } from '../../common/http/errors/api.exception';
 import { User } from '../auth/entities/user.entity';
 import { SignDocumentDto } from './document.dto';
 import { DocumentSignature } from './entities/document-signature.entity';
+import { DocumentRateLimitService } from './document-rate-limit.service';
 import { PdfFileService } from './pdf-file.service';
 import { PdfSignatureService } from './pdf-signature.service';
 import { SigningKeyService } from './signing-key.service';
@@ -23,6 +24,7 @@ export class DocumentsService {
     private readonly files: PdfFileService,
     private readonly keys: SigningKeyService,
     private readonly pdfs: PdfSignatureService,
+    private readonly rateLimit: DocumentRateLimitService,
   ) {}
 
   async sign(
@@ -72,7 +74,8 @@ export class DocumentsService {
     }
   }
 
-  async verify(file: Express.Multer.File) {
+  async verify(file: Express.Multer.File, ip: string) {
+    await this.rateLimit.consume(ip);
     const pdf = this.files.validate(file);
     const inspection = this.pdfs.inspect(pdf);
     if (!inspection.present) return { status: 'not_found' as const };
