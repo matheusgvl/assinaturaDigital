@@ -3,6 +3,7 @@ import { HttpStatus } from '@nestjs/common';
 import { ApiExceptionFilter } from '../common/http/filters/api-exception.filter';
 import { API_ERROR_CODES } from '../common/http/errors/api-error-codes';
 import { ApiException } from '../common/http/errors/api.exception';
+import { resolveCorsOrigins } from '../config/app.config';
 
 const VALIDATION_REASON_MESSAGES: Record<string, string> = {
   whitelistValidation: 'contains an unsupported field',
@@ -30,9 +31,16 @@ function validationDetails(errors: ValidationError[]): Readonly<Record<string, u
 }
 
 /** Applies the shared HTTP configuration used by the real server and tests. */
-export function configureApp(app: INestApplication): INestApplication {
+export function configureApp(
+  app: INestApplication,
+  corsOrigins = resolveCorsOrigins(process.env),
+): INestApplication {
   app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.setGlobalPrefix('api/v1');
+  app.enableCors({
+    origin: corsOrigins,
+    credentials: true,
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
