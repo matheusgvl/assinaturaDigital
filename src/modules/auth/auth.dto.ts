@@ -66,6 +66,17 @@ export class TotpSetupConfirmationDto {
   code!: string;
 }
 
+/** Exige senha atual e um TOTP corrente para remover o segundo fator. */
+export class TotpDisableDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  currentPassword!: string;
+
+  @Matches(/^\d{6}$/)
+  code!: string;
+}
+
 export class TotpLoginVerificationDto {
   @IsUUID()
   transactionId!: string;

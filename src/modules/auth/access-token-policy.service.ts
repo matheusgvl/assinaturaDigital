@@ -59,6 +59,7 @@ export class AccessTokenPolicyService {
       !user ||
       session.revokedAt ||
       session.expiresAt <= now ||
+      (user.totpEnabled && !session.secondFactorVerifiedAt) ||
       !claims.iat ||
       Math.floor(user.passwordChangedAt.getTime() / 1000) > claims.iat
     ) {

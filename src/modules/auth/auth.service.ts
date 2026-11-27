@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import {
   DataSource,
   EntityManager,
@@ -28,6 +29,7 @@ import { Session } from './entities/session.entity';
 import { User } from './entities/user.entity';
 import { TotpLoginService } from './totp-login.service';
 import { SigningKeyService } from '../documents/signing-key.service';
+import { TotpAlertService } from './totp-alert.service';
 
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
 // O refresh token permanece utilizavel por no maximo sete dias, conforme REQ-19.
@@ -181,9 +183,13 @@ export class AuthService {
     user: AuthenticatedUser;
   }> {
     const { userId } = await this.totpLogin.verify(dto, ip, userAgent);
-    const user = await this.users.findOne({ where: { id: userId } });
-    if (!user || !user.totpEnabled) throw authError();
-    return this.issueSession(user, userAgent, ip, new Date(), true);
+    return this.dataSource.transaction(async (manager) => {
+      const user = await manager.getRepository(User).findOne({
+        where: { id: userId }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!user || !user.totpEnabled) throw authError();
+      return this.issueSession(user, userAgent, ip, new Date(), true, manager);
+    });
   }
 
   private async issueSession(
@@ -204,6 +210,7 @@ export class AuthService {
     const sessionId = randomUUID();
     const issue = async (transaction: EntityManager) => {
       const sessions = transaction.getRepository(Session);
+      await this.recordLoginIp(transaction, user.id, ip, userAgent);
       await sessions.save(
         sessions.create({
           id: sessionId,
@@ -378,7 +385,12 @@ export class AuthService {
   }
 
   /** Atualiza a senha e revoga todas as sessões em uma única transação. */
-  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    ip: string,
+    userAgent: string | undefined,
+  ): Promise<void> {
     validatePasswordPolicy(dto.newPassword);
     await this.dataSource.transaction(async (manager) => {
       const users = manager.getRepository(User);
@@ -397,7 +409,32 @@ export class AuthService {
         { userId, revokedAt: IsNull() },
         { revokedAt: new Date() },
       );
+      await this.alerts.create(manager, userId, 'password_changed', ip, userAgent);
     });
+  }
+
+  /** Registra um alerta somente a partir do segundo IP distinto da conta. */
+  private async recordLoginIp(
+    manager: EntityManager,
+    userId: string,
+    ip: string,
+    userAgent: string | undefined,
+  ): Promise<void> {
+    if (!isIP(ip)) return;
+    const existing = await manager.query(
+      'SELECT 1 FROM known_login_ips WHERE user_id = $1 AND ip = $2', [userId, ip],
+    );
+    await manager.query(`
+      INSERT INTO known_login_ips (user_id, ip) VALUES ($1, $2)
+      ON CONFLICT (user_id, ip) DO UPDATE SET last_seen_at = now()
+    `, [userId, ip]);
+    if (existing.length !== 0) return;
+    const [{ count }] = await manager.query<Array<{ count: string }>>(
+      'SELECT count(*)::text AS count FROM known_login_ips WHERE user_id = $1', [userId],
+    );
+    if (Number(count) > 1) {
+      await this.alerts.create(manager, userId, 'new_ip', ip, userAgent);
+    }
   }
 
   getUser(userId: string): Promise<User | null> {
@@ -416,5 +453,6 @@ export class AuthService {
     private readonly dataSource: DataSource,
     private readonly totpLogin: TotpLoginService,
     private readonly signingKeys: SigningKeyService,
+    private readonly alerts: TotpAlertService,
   ) {}
 }
