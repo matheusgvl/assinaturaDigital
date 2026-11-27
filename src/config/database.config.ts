@@ -10,6 +10,14 @@ export interface DatabaseEnvironment {
 
 const databaseUrlError =
   'DATABASE_URL is required and must be a valid PostgreSQL URL';
+const databaseTlsUrlParameters = new Set([
+  'ssl',
+  'sslcert',
+  'sslkey',
+  'sslmode',
+  'sslpassword',
+  'sslrootcert',
+]);
 
 export function resolveDatabaseUrl(environment: Record<string, unknown>): string {
   const configuredUrl = environment[DATABASE_URL_ENV_NAME];
@@ -45,6 +53,12 @@ export function resolveDatabaseUrl(environment: Record<string, unknown>): string
 
   if (!databaseName || databaseName.includes('/')) {
     throw new Error(databaseUrlError);
+  }
+
+  for (const parameter of parsedUrl.searchParams.keys()) {
+    if (databaseTlsUrlParameters.has(parameter.toLowerCase())) {
+      throw new Error(databaseUrlError);
+    }
   }
 
   return configuredUrl;
