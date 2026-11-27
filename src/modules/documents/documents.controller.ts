@@ -27,7 +27,7 @@ export class DocumentsController {
     @Req() request: AuthenticatedRequest,
     @Res() response: Response,
   ): Promise<void> {
-    const result = await this.documents.sign(file, dto, request.user.id);
+    const result = await this.documents.sign(file, dto, request.user.id, request.ip ?? request.socket.remoteAddress);
     response
       .status(200)
       .type('application/pdf')

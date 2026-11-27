@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
-import { createDecipheriv, generateKeyPairSync, randomUUID } from 'node:crypto';
+import { createDecipheriv, createHash, generateKeyPairSync, randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { inflateSync } from 'node:zlib';
 import { PDFDocument } from 'pdf-lib';
 import forge from 'node-forge';
@@ -10,6 +11,7 @@ import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap/configure-app';
 import { SigningKey } from '../src/modules/documents/entities/signing-key.entity';
+import { DocumentSignature } from '../src/modules/documents/entities/document-signature.entity';
 
 function configureJwtKeys(): void {
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -143,6 +145,14 @@ describe('document signing flow (integration)', () => {
     const visualSeal = inflatePdfStreams(signed);
     expect(visualSeal).toContain('SHA-256:');
     expect(visualSeal).toContain('ID:');
+
+    const sha256 = (value: Buffer) => createHash('sha256').update(value).digest('hex');
+    const record = await app.get(DataSource).getRepository(DocumentSignature)
+      .findOneByOrFail({ signedHash: sha256(signed) });
+    expect(record.originalHash).toBe(sha256(original));
+    expect(isIP(record.sourceIp ?? '')).toBeGreaterThan(0);
+    expect(record.signedAt.toISOString()).toMatch(/Z$/);
+    expect(Object.values(record).some(Buffer.isBuffer)).toBe(false);
 
     await request(app.getHttpServer())
       .post('/api/v1/documents/verify')

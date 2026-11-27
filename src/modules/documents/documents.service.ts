@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { Repository } from 'typeorm';
 import { API_ERROR_CODES } from '../../common/http/errors/api-error-codes';
 import { ApiException } from '../../common/http/errors/api.exception';
@@ -31,7 +32,11 @@ export class DocumentsService {
     file: Express.Multer.File,
     dto: SignDocumentDto,
     userId: string,
+    sourceIp: string | undefined,
   ): Promise<{ buffer: Buffer; fileName: string }> {
+    if (!sourceIp || !isIP(sourceIp)) {
+      throw new ApiException(API_ERROR_CODES.DOCUMENT, HttpStatus.INTERNAL_SERVER_ERROR, SIGNING_FAILURE);
+    }
     const original = this.files.validate(file);
     const originalHash = this.files.sha256(original);
     const user = await this.users.findOne({ where: { id: userId } });
@@ -66,6 +71,7 @@ export class DocumentsService {
           signedHash: this.files.sha256(signed),
           signerName: user.name,
           signedAt,
+          sourceIp,
         }),
       );
       return { buffer: signed, fileName: 'documento-assinado.pdf' };
