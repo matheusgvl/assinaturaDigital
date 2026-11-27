@@ -177,4 +177,4 @@ Não havia uma skill dedicada de NestJS ou TOTP instalada; não foram instaladas
 - A auditoria persistente geral ainda é um próximo bloco; os alertas TOTP já possuem armazenamento próprio e não incluem segredos.
 - WebAuthn não foi iniciado automaticamente.
 
-As issues #11–#16 têm PRs mesclados e evidências técnicas anexáveis. O fechamento formal deve ocorrer após a revisão/aprovação prevista pelo fluxo acadêmico; não foi feito fechamento automático neste relatório.
+As issues #11–#16 aparecem como `CLOSED` no GitHub após os merges. Não executei `gh issue close` manualmente; o fechamento ocorreu no fluxo do GitHub associado aos PRs. A aprovação acadêmica e a revisão do professor continuam sendo a validação externa final.
