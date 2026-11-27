@@ -17,6 +17,7 @@ import { AuthService, type LoginResult } from './auth.service';
 import { PasskeyChallenge } from './entities/passkey-challenge.entity';
 import { Passkey } from './entities/passkey.entity';
 import { Session } from './entities/session.entity';
+import { TotpLoginTransaction } from './entities/totp-login-transaction.entity';
 import { User } from './entities/user.entity';
 import { LoginRateLimitService } from './login-rate-limit.service';
 import { verifyPassword } from './password-hasher';
@@ -172,8 +173,50 @@ export class PasskeyService {
     });
   }
 
+  /** Lista os dispositivos ativos do titular, com uma projeção própria para a API. */
+  async list(userId: string) {
+    const devices = await this.dataSource.getRepository(Passkey).find({
+      where: { userId, revokedAt: IsNull() },
+      select: { id: true, name: true, createdAt: true, lastUsedAt: true, transports: true },
+      order: { createdAt: 'DESC', id: 'ASC' },
+    });
+    return devices.map(({ id, name, createdAt, lastUsedAt, transports }) => ({
+      id, name, createdAt, lastUsedAt, transports,
+    }));
+  }
+
+  /** Altera o nome visível ou revoga a credencial após confirmação de identidade. */
+  async manage(
+    actor: AuthenticatedUser,
+    id: string,
+    password: string,
+    ip: string,
+    change: { name: string } | { revoke: true },
+  ): Promise<void> {
+    const authenticated = await this.confirmIdentity(actor, password, ip);
+    await this.dataSource.transaction(async (manager) => {
+      const user = await manager.getRepository(User).findOne({
+        where: { id: actor.id }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!user || user.passwordHash !== authenticated.passwordHash) throw invalidPasskey();
+      await this.assertSession(manager, actor, user);
+      const result = await manager.getRepository(Passkey).update(
+        { id, userId: actor.id, revokedAt: IsNull() },
+        'revoke' in change ? { revokedAt: new Date() } : { name: change.name },
+      );
+      if (result.affected !== 1) {
+        throw new ApiException('AUTH_002', HttpStatus.NOT_FOUND, 'Passkey not found');
+      }
+      if ('revoke' in change) {
+        await manager.getRepository(TotpLoginTransaction).delete({
+          userId: actor.id, consumedAt: IsNull(),
+        });
+      }
+    });
+  }
+
   /** Revalida a senha e a sessão para autorizar operações sobre passkeys. */
-  async confirmIdentity(actor: AuthenticatedUser, password: string, ip: string): Promise<User> {
+  private async confirmIdentity(actor: AuthenticatedUser, password: string, ip: string): Promise<User> {
     await this.rateLimit.consumeAttempt(actor.email, ip);
     const user = await this.auth.getUser(actor.id);
     if (!user || !(await verifyPassword(password, user.passwordHash))) throw invalidPasskey();

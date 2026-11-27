@@ -1,4 +1,5 @@
 import { IsObject, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class PasskeyRegistrationOptionsDto {
   @IsString()
@@ -14,4 +15,12 @@ export class PasskeyVerificationDto {
 
   @IsObject()
   credential!: Record<string, unknown>;
+}
+
+export class RenamePasskeyDto extends PasskeyRegistrationOptionsDto {
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name!: string;
 }
