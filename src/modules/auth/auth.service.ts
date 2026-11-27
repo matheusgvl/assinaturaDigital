@@ -7,6 +7,7 @@ import {
   IsNull,
   LessThanOrEqual,
   MoreThan,
+  QueryFailedError,
   Repository,
 } from 'typeorm';
 import { API_ERROR_CODES } from '../../common/http/errors/api-error-codes';
@@ -26,6 +27,7 @@ import { AccessTokenDenylist } from './entities/access-token-denylist.entity';
 import { Session } from './entities/session.entity';
 import { User } from './entities/user.entity';
 import { TotpLoginService } from './totp-login.service';
+import { SigningKeyService } from '../documents/signing-key.service';
 
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
 // O refresh token permanece utilizavel por no maximo sete dias, conforme REQ-19.
@@ -83,10 +85,18 @@ export class AuthService {
       passwordChangedAt: new Date(),
     });
 
+    const encrypted = await this.signingKeys.prepare(user.name);
     try {
-      const saved = await this.users.save(user);
+      const saved = await this.dataSource.transaction(async (manager) => {
+        const created = await manager.getRepository(User).save(user);
+        await this.signingKeys.provision(manager, created.id, encrypted);
+        return created;
+      });
       return { id: saved.id, name: saved.name, email: saved.email };
-    } catch {
+    } catch (error) {
+      if (!(error instanceof QueryFailedError) || (error.driverError as { code?: string }).code !== '23505') {
+        throw error;
+      }
       throw new ApiException(
         API_ERROR_CODES.AUTHENTICATION,
         HttpStatus.CONFLICT,
@@ -405,5 +415,6 @@ export class AuthService {
     private readonly rateLimit: LoginRateLimitService,
     private readonly dataSource: DataSource,
     private readonly totpLogin: TotpLoginService,
+    private readonly signingKeys: SigningKeyService,
   ) {}
 }

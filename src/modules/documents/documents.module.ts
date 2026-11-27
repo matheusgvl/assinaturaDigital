@@ -3,18 +3,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../auth/entities/user.entity';
 import { DocumentSignature } from './entities/document-signature.entity';
-import { SigningKey } from './entities/signing-key.entity';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { DocumentRateLimitService } from './document-rate-limit.service';
 import { PdfFileService } from './pdf-file.service';
 import { PdfSignatureService } from './pdf-signature.service';
-import { SigningKeyService } from './signing-key.service';
+import { SigningKeysModule } from './signing-keys.module';
 
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([User, SigningKey, DocumentSignature]),
+    SigningKeysModule,
+    TypeOrmModule.forFeature([User, DocumentSignature]),
   ],
   controllers: [DocumentsController],
   providers: [
@@ -22,7 +22,6 @@ import { SigningKeyService } from './signing-key.service';
     DocumentRateLimitService,
     PdfFileService,
     PdfSignatureService,
-    SigningKeyService,
   ],
 })
 export class DocumentsModule {}

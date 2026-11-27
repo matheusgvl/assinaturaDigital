@@ -1,13 +1,15 @@
 import { INestApplication } from '@nestjs/common';
-import { generateKeyPairSync } from 'node:crypto';
+import { createDecipheriv, generateKeyPairSync, randomUUID } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { PDFDocument } from 'pdf-lib';
+import forge from 'node-forge';
 import request from 'supertest';
 import type { Response as SuperagentResponse } from 'superagent';
 import { DataSource } from 'typeorm';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap/configure-app';
+import { SigningKey } from '../src/modules/documents/entities/signing-key.entity';
 
 function configureJwtKeys(): void {
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -84,6 +86,40 @@ describe('document signing flow (integration)', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('provisions a distinct encrypted RSA signing key for each account at registration', async () => {
+    const keys = app.get(DataSource).getRepository(SigningKey);
+    const moduli = new Set<string>();
+    for (let index = 0; index < 2; index += 1) {
+      const user = await request(app.getHttpServer()).post('/api/v1/auth/register')
+        .send({ name: 'RSA fixture', email: `${randomUUID()}@example.test`, password: 'Strong-password9' })
+        .expect(201);
+      expect(Object.keys(user.body).sort()).toEqual(['email', 'id', 'name']);
+      const row = await keys.findOneByOrFail({ userId: user.body.id as string });
+      expect(row.iv).toHaveLength(12);
+      expect(row.authTag).toHaveLength(16);
+      const master = Buffer.from(process.env.PDF_MASTER_KEY_B64!, 'base64');
+      try {
+        const decipher = createDecipheriv('aes-256-gcm', master, row.iv);
+        decipher.setAuthTag(row.authTag);
+        const plain = Buffer.concat([decipher.update(row.encryptedP12), decipher.final()]);
+        try {
+          expect(row.encryptedP12.equals(plain)).toBe(false);
+          const store = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(plain.toString('binary')), '');
+          const bagType = forge.pki.oids.certBag;
+          const cert = store.getBags({ bagType })[bagType]?.[0]?.cert;
+          const publicKey = cert?.publicKey as { n: { bitLength(): number; toString(radix: number): string } } | undefined;
+          expect(publicKey?.n.bitLength()).toBe(2048);
+          moduli.add(publicKey!.n.toString(16));
+        } finally {
+          plain.fill(0);
+        }
+      } finally {
+        master.fill(0);
+      }
+    }
+    expect(moduli.size).toBe(2);
   });
 
   it('embeds a real CMS signature, records it, and verifies the returned PDF', async () => {

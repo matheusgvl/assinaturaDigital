@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import forge from 'node-forge';
 import { API_ERROR_CODES } from '../../common/http/errors/api-error-codes';
 import { ApiException } from '../../common/http/errors/api.exception';
@@ -10,6 +10,7 @@ import { SigningKey } from './entities/signing-key.entity';
 
 const AES_ALGORITHM = 'aes-256-gcm';
 const P12_PASSPHRASE = '';
+type RsaKeyPair = { publicKey: unknown; privateKey: unknown };
 
 function configurationError(): ApiException {
   return new ApiException(
@@ -19,8 +20,13 @@ function configurationError(): ApiException {
   );
 }
 
-function createPkcs12(userName: string): Buffer {
-  const keyPair = forge.pki.rsa.generateKeyPair({ bits: 2048, e: 0x10001 });
+async function createPkcs12(userName: string): Promise<Buffer> {
+  const keyPair = await new Promise<RsaKeyPair>((resolve, reject) => {
+    forge.pki.rsa.generateKeyPair({ bits: 2048, e: 0x10001 }, (error: Error | null, pair: RsaKeyPair) => {
+      if (error) reject(error);
+      else resolve(pair);
+    });
+  });
   const certificate = forge.pki.createCertificate();
   certificate.publicKey = keyPair.publicKey;
   certificate.serialNumber = randomBytes(16).toString('hex');
@@ -48,22 +54,33 @@ export class SigningKeyService {
     private readonly config: ConfigService,
   ) {}
 
+  /** Prepara a chave RSA individual cifrada antes da transação de cadastro. */
+  async prepare(userName: string): Promise<Pick<SigningKey, 'encryptedP12' | 'iv' | 'authTag'>> {
+    const p12 = await createPkcs12(userName);
+    try {
+      return this.encrypt(p12);
+    } finally {
+      p12.fill(0);
+    }
+  }
+
+  /** Grava a chave no mesmo commit que cria o usuário. */
+  async provision(
+    manager: EntityManager,
+    userId: string,
+    encrypted: Pick<SigningKey, 'encryptedP12' | 'iv' | 'authTag'>,
+  ): Promise<void> {
+    await manager.getRepository(SigningKey).insert({ id: randomUUID(), userId, ...encrypted });
+  }
+
+  /** Mantém a primeira assinatura de usuários cadastrados antes de REQ-45. */
   async getP12(userId: string, userName: string): Promise<Buffer> {
     const existing = await this.keys.findOne({ where: { userId } });
     if (existing) return this.decrypt(existing);
 
-    const p12 = createPkcs12(userName);
-    const encrypted = this.encrypt(p12);
-    p12.fill(0);
-    try {
-      await this.keys.save(
-        this.keys.create({ id: randomUUID(), userId, ...encrypted }),
-      );
-    } catch {
-      const concurrent = await this.keys.findOne({ where: { userId } });
-      if (concurrent) return this.decrypt(concurrent);
-      throw configurationError();
-    }
+    const encrypted = await this.prepare(userName);
+    await this.keys.createQueryBuilder().insert()
+      .values({ id: randomUUID(), userId, ...encrypted }).orIgnore().execute();
     const stored = await this.keys.findOneOrFail({ where: { userId } });
     return this.decrypt(stored);
   }
