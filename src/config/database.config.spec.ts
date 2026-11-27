@@ -24,6 +24,8 @@ describe('database configuration', () => {
     'mysql://user:pass@127.0.0.1:3306/testdb',
     'not-a-database-url',
     'postgres://127.0.0.1:5432/test db',
+    'postgres://127.0.0.1:5432/testdb?sslmode=disable',
+    'postgres://127.0.0.1:5432/testdb?sslrootcert=%2Ftmp%2Fca.crt',
   ])('rejects invalid DATABASE_URL values', (value) => {
     expect(() => resolveDatabaseUrl({ DATABASE_URL: value })).toThrow(
       'DATABASE_URL is required and must be a valid PostgreSQL URL',
@@ -41,6 +43,14 @@ describe('database configuration', () => {
       expect((error as Error).message).not.toContain(invalidUrl);
       expect((error as Error).message).not.toContain('synthetic-password');
     }
+  });
+
+  it('does not allow URL TLS parameters to override DATABASE_SSL', () => {
+    const invalidUrl = `${validUrl}?sslmode=disable`;
+
+    expect(() => resolveDatabaseUrl({ DATABASE_URL: invalidUrl })).toThrow(
+      'DATABASE_URL is required and must be a valid PostgreSQL URL',
+    );
   });
 
   it('accepts only the documented boolean TLS values', () => {
