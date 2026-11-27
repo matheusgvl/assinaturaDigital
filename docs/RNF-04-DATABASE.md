@@ -69,7 +69,7 @@ O mecanismo real, histórico, segunda execução e reversão da fixture estão d
 `test/database.e2e-spec.ts` usa um PostgreSQL isolado para comprovar:
 
 - conexão real e `SELECT 1`;
-- startup válido e `GET /health`;
+- startup válido e `GET /api/v1/health`;
 - falha quando `DATABASE_URL` está ausente;
 - falha quando o PostgreSQL está indisponível;
 - falha com credenciais inválidas sem ecoar a senha sintética;
@@ -92,7 +92,7 @@ Em 27/11/2026, a validação foi executada com um container efêmero `postgres:1
 | `npm run test` | 7 suítes e 48 testes aprovados |
 | `npm run test:e2e` | 4 suítes e 17 testes aprovados |
 | `git diff --check` | aprovado |
-| startup real válido | processo iniciou e `GET /health` retornou HTTP 200 com contrato esperado |
+| startup real válido | processo iniciou e `GET /api/v1/health` retornou HTTP 200 com contrato esperado |
 | startup real sem `PORT` | processo encerrou com código 1 antes de escutar |
 | `--detectOpenHandles` | 4 suítes e 17 testes aprovados, sem handle persistente reportado |
 | `migration:run` em banco vazio | tabela `typeorm_migrations` criada; nenhuma tabela de fixture/negócio criada |

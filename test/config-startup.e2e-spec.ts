@@ -40,7 +40,7 @@ describe('ConfigModule startup validation (integration)', () => {
       await app.init();
 
       await request(app.getHttpServer())
-        .get('/health')
+        .get('/api/v1/health')
         .expect(200)
         .expect({ status: 'ok', service: 'assinatura-digital-api' });
 

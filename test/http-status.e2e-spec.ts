@@ -64,7 +64,7 @@ describe('HTTP status contract (integration)', () => {
     'returns the semantic status and safe envelope for %s',
     async (route, status, code, message) => {
       const response = await request(app.getHttpServer())
-        .get(`/status-fixture/${route}`)
+        .get(`/api/v1/status-fixture/${route}`)
         .expect(status);
 
       expect(response.body).toMatchObject({

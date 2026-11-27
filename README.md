@@ -47,7 +47,7 @@ npm run migration:run
 
 ## Endpoint provisório
 
-`GET /health` retorna HTTP 200 e:
+`GET /api/v1/health` retorna HTTP 200 e:
 
 ```json
 {
@@ -56,7 +56,7 @@ npm run migration:run
 }
 ```
 
-É uma rota mínima: não executa consultas, não expõe credenciais nem informações sobre serviços externos e permanece disponível após a conexão de infraestrutura ser estabelecida. O prefixo `/api/v1` será tratado posteriormente na Issue #81 (RNF-16); portanto, não é aplicado nesta issue.
+É uma rota mínima: não executa consultas, não expõe credenciais nem informações sobre serviços externos e permanece disponível após a conexão de infraestrutura ser estabelecida. Todas as rotas HTTP são expostas sob o prefixo versionado `/api/v1`, conforme a Issue #81 (RNF-16).
 
 ## Estrutura implementada
 

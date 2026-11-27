@@ -5,7 +5,7 @@
 O backend usa NestJS como API HTTP independente do frontend. O único recurso disponível nesta etapa é o health check:
 
 ```http
-GET /health
+GET /api/v1/health
 Accept: application/json
 ```
 
@@ -31,7 +31,7 @@ Os campos são estáveis, tipados no backend e não incluem banco de dados, ambi
 - Query parameters ficam reservados para filtros e paginação.
 - JSON é o formato padrão; `multipart/form-data` será usado apenas quando o upload de PDF for implementado.
 
-Não são criadas rotas artificiais apenas para demonstrar métodos HTTP. Atualmente, `POST /health` não é suportado e o NestJS responde `404`.
+Não são criadas rotas artificiais apenas para demonstrar métodos HTTP. Atualmente, `POST /api/v1/health` não é suportado e o NestJS responde `404`.
 
 ## Status HTTP
 
@@ -44,7 +44,7 @@ Erros HTTP usam um envelope JSON estável com `code`, `message`, `timestamp` e `
   "code": "VAL_001",
   "message": "Invalid request",
   "timestamp": "2026-11-27T14:00:00.000Z",
-  "path": "/health"
+  "path": "/api/v1/health"
 }
 ```
 
@@ -58,7 +58,7 @@ Controllers são a camada de transporte: recebem HTTP, delegam e retornam contra
 
 ## Versionamento e evolução
 
-O endpoint atual permanece em `/health` até a aplicação do prefixo versionado da Issue #81 (RNF-16). A política completa está em [`docs/RNF-17-API-VERSIONING.md`](RNF-17-API-VERSIONING.md). Novos endpoints devem:
+O endpoint atual é `/api/v1/health`, conforme a Issue #81 (RNF-16). A política completa está em [`docs/RNF-17-API-VERSIONING.md`](RNF-17-API-VERSIONING.md). Novos endpoints devem:
 
 1. representar um recurso ou operação de domínio real;
 2. declarar método, entrada, saída e status HTTP;

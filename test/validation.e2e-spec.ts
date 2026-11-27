@@ -38,7 +38,7 @@ describe('global validation pipe (integration)', () => {
 
   it('accepts a valid DTO and transforms the request through the pipe', async () => {
     await request(app.getHttpServer())
-      .post('/validation-fixture')
+      .post('/api/v1/validation-fixture')
       .send({ email: 'person@example.com', displayName: 'Person' })
       .expect(201)
       .expect({ email: 'person@example.com', displayName: 'Person' });
@@ -46,7 +46,7 @@ describe('global validation pipe (integration)', () => {
 
   it('rejects invalid fields without echoing the submitted value', async () => {
     const response = await request(app.getHttpServer())
-      .post('/validation-fixture')
+      .post('/api/v1/validation-fixture')
       .send({
         email: 'not-an-email-with-sensitive-marker',
         displayName: 42,

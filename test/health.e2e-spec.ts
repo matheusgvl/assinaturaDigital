@@ -20,7 +20,7 @@ describe('Health endpoint (e2e)', () => {
 
   it('returns the health contract with safe, typed fields', async () => {
     const response = await request(app.getHttpServer())
-      .get('/health')
+      .get('/api/v1/health')
       .expect('Content-Type', /json/)
       .expect(200);
 
@@ -37,14 +37,14 @@ describe('Health endpoint (e2e)', () => {
 
   it('does not accept POST on the GET-only health route', () =>
     request(app.getHttpServer())
-      .post('/health')
+      .post('/api/v1/health')
       .send({ status: 'unexpected' })
       .expect(404),
   );
 
   it('returns a stable, non-sensitive error for an unknown route', async () => {
     const response = await request(app.getHttpServer())
-      .get('/unknown')
+      .get('/api/v1/unknown')
       .expect('Content-Type', /json/)
       .expect(404);
 
@@ -52,18 +52,22 @@ describe('Health endpoint (e2e)', () => {
       code: 'API_001',
       message: 'Resource not found',
       timestamp: expect.any(String),
-      path: '/unknown',
+      path: '/api/v1/unknown',
     });
     expect(JSON.stringify(response.body)).not.toMatch(/stack|sql|secret/i);
   });
 
   it('does not expose the Express fingerprint header', () =>
     request(app.getHttpServer())
-      .get('/health')
+      .get('/api/v1/health')
       .expect((response) => {
         if (response.headers['x-powered-by']) {
           throw new Error('X-Powered-By must not be exposed');
         }
       }),
+  );
+
+  it('does not expose the health route without the API version', () =>
+    request(app.getHttpServer()).get('/health').expect(404),
   );
 });

@@ -32,6 +32,7 @@ function validationDetails(errors: ValidationError[]): Readonly<Record<string, u
 /** Applies the shared HTTP configuration used by the real server and tests. */
 export function configureApp(app: INestApplication): INestApplication {
   app.getHttpAdapter().getInstance().disable('x-powered-by');
+  app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
