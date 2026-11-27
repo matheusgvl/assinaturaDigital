@@ -132,6 +132,8 @@ A arquitetura, as opções de conexão e as evidências de integração do Postg
 
 A auditoria automatizada de dependências e a limitação atualmente observada no grafo npm estão em [`docs/REQ-66-DEPENDENCY-AUDIT.md`](docs/REQ-66-DEPENDENCY-AUDIT.md).
 
+A política que proíbe alterações manuais permanentes no schema está em [`docs/RNF-10-MIGRATION-DISCIPLINE.md`](docs/RNF-10-MIGRATION-DISCIPLINE.md).
+
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
 
 ## Processo de desenvolvimento
