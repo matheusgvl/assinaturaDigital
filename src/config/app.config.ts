@@ -1,6 +1,5 @@
 import { registerAs } from '@nestjs/config';
 
-export const DEFAULT_PORT = 3000;
 export const PORT_ENV_NAME = 'PORT';
 
 export interface ValidatedEnvironment {
