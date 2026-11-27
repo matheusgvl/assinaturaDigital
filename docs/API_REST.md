@@ -37,7 +37,20 @@ Não são criadas rotas artificiais apenas para demonstrar métodos HTTP. Atualm
 
 As respostas devem usar semanticamente `200 OK`, `201 Created` e `204 No Content` para sucesso, e `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `413 Payload Too Large`, `422 Unprocessable Entity`, `429 Too Many Requests` e `500 Internal Server Error` conforme o caso.
 
-A padronização global de erros será implementada nas Issues #77–#80. Até lá, são utilizados os mecanismos nativos do NestJS; não há um formato de erro customizado garantido.
+Erros HTTP usam um envelope JSON estável com `code`, `message`, `timestamp` e `path`:
+
+```json
+{
+  "code": "VAL_001",
+  "message": "Invalid request",
+  "timestamp": "2026-11-27T14:00:00.000Z",
+  "path": "/health"
+}
+```
+
+O código é controlado pelo backend: `VAL_001` representa validação, `AUTH_001` autenticação, `AUTH_002` autorização, `DOC_001` documentos e `API_001` falhas genéricas. Exceções inesperadas sempre retornam `500 Internal Server Error` sem stack trace, SQL, credenciais ou valores recebidos.
+
+Falhas de entrada usam `400`, ausência de autenticação usa `401`, falta de permissão usa `403`, recurso inexistente usa `404` e falhas não tratadas usam `500`. O filtro global preserva esses status e não transforma falhas internas em respostas de sucesso.
 
 ## Organização
 
