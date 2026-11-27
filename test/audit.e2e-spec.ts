@@ -147,8 +147,15 @@ describe('audit trail (PostgreSQL integration)', () => {
       .set('X-CSRF-Token', csrfCookie.slice('csrf_token='.length))
       .expect(204);
 
+    // A tabela é append-only por definição: outros cenários não podem apagá-la
+    // para isolar este teste. O agente HTTP identifica somente os fatos que
+    // este próprio cenário produziu, mesmo quando a regressão completa roda.
     const events = await data.query<AuditRow[]>(
-      'SELECT id, user_id, occurred_at, ip, user_agent, request_id, action, result FROM audit_events ORDER BY occurred_at ASC',
+      `SELECT id, user_id, occurred_at, ip, user_agent, request_id, action, result
+       FROM audit_events
+       WHERE user_agent = $1
+       ORDER BY occurred_at ASC`,
+      [agent],
     );
     const actions = events.map((event) => event.action);
     expect(actions).toEqual(expect.arrayContaining([
@@ -174,7 +181,8 @@ describe('audit trail (PostgreSQL integration)', () => {
       .rejects.toThrow(/permission denied|append-only/i);
     await expect(data.query('DELETE FROM audit_events')).rejects.toThrow(/permission denied|append-only/i);
     const [{ count }] = await data.query<Array<{ count: string }>>(
-      'SELECT count(*)::text AS count FROM audit_events',
+      'SELECT count(*)::text AS count FROM audit_events WHERE user_agent = $1',
+      [agent],
     );
     expect(Number(count)).toBe(originalCount);
   });
