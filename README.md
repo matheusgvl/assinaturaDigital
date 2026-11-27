@@ -91,6 +91,10 @@ Essa estrutura é apenas o planejamento arquitetural. Não foram implementados n
 
 HTTP conventions, expected statuses, and the detailed health-check contract are documented in [`docs/API_REST.md`](docs/API_REST.md). The current endpoint is intentionally small; no fictitious user, document, or authentication endpoints are exposed.
 
+## Configuração por ambiente
+
+The current environment configuration is documented in [`docs/RNF-05-CONFIG.md`](docs/RNF-05-CONFIG.md). Only `PORT` is currently used; it defaults locally to `3000` when absent. Credentials and future database/authentication settings are not created in this issue.
+
 ## Processo de desenvolvimento
 
 Cada requisito deve ser trabalhado em sua própria branch e issue, com commits terminados em `Ref #ID`, revisão por Pull Request e merge posterior na `main`. Esta entrega é exclusiva do RNF-01 / Issue #67 e não altera o repositório do frontend.
