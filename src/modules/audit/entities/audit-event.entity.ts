@@ -2,7 +2,8 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm'
 
 export type AuditAction =
   | 'login' | 'logout' | 'auth_failure' | 'token_issued'
-  | 'document_sign' | 'document_verify' | 'password_change';
+  | 'document_sign' | 'document_verify' | 'password_change'
+  | 'totp_enabled' | 'passkey_registered' | 'passkey_revoked';
 export type AuditResult = 'success' | 'failure' | 'pending';
 
 /** Guarda o fato observado e o contexto mínimo, inclusive para operações públicas. */
