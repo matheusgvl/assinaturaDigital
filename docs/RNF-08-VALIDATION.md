@@ -28,3 +28,14 @@ O arquivo `test/setup-env.ts` fornece apenas `PORT=3000` sintético para os test
 ## Limites
 
 Novas variáveis obrigatórias deverão ser adicionadas à função de validação, ao `.env.example`, à documentação e aos testes na mesma issue que introduzir a configuração. PostgreSQL, autenticação, chaves criptográficas e demais variáveis futuras não foram criados nesta issue.
+
+## Evidências executadas
+
+- `npm ci`: concluído.
+- `npx tsc --noEmit`: aprovado.
+- `npm run lint`: aprovado.
+- `npm run build`: aprovado.
+- Testes unitários: 27 aprovados.
+- Testes E2E: 4 aprovados.
+- Processo sem `PORT`: encerrou com código 1 antes de disponibilizar a API.
+- Processo com porta válida: iniciou em uma porta de teste e `GET /health` retornou HTTP 200 com o contrato existente.
