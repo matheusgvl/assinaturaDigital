@@ -29,7 +29,7 @@ describe('database options factory', () => {
         connectionTimeoutMillis: DATABASE_CONNECTION_TIMEOUT_MS,
       },
     });
-    expect(options.ssl).toBe(false);
+    expect((options as { ssl: unknown }).ssl).toBe(false);
   });
 
   it('requires certificate verification when TLS is enabled', () => {
@@ -40,7 +40,7 @@ describe('database options factory', () => {
       },
     });
 
-    expect(createDatabaseOptions(configService).ssl).toEqual({
+    expect((createDatabaseOptions(configService) as { ssl: unknown }).ssl).toEqual({
       rejectUnauthorized: true,
     });
   });

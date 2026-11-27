@@ -23,7 +23,7 @@ describe('.env.example', () => {
 
   it('contains no populated configuration values or future secrets', () => {
     const populatedAssignments = content.match(/^[A-Z][A-Z0-9_]*=.+$/gm) ?? [];
-    expect(populatedAssignments).toEqual(['PORT=3000']);
+    expect(populatedAssignments).toEqual(['PORT=3000', 'DATABASE_SSL=false']);
     expect(content).not.toMatch(
       /^(JWT_PRIVATE_KEY|JWT_PUBLIC_KEY|PASSWORD|TOKEN|PRIVATE_KEY)=.+$/m,
     );
