@@ -9,6 +9,7 @@ export type AuthenticatedRequest = Request & { user: AuthenticatedUser };
 export class JwtAuthGuard implements CanActivate {
   constructor(private readonly policy: AccessTokenPolicyService) {}
 
+  /** Rejeita o Bearer antes do controller quando a sessão não está mais válida. */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authorization = request.headers.authorization;

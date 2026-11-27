@@ -34,6 +34,13 @@ function readKey(environmentName: string): string {
 
 @Injectable()
 export class AuthTokenService {
+  /**
+   * Emite um JWT curto vinculado à sessão e ao contexto de autenticação.
+   *
+   * O refresh token não participa deste método e permanece somente no cookie
+   * HttpOnly. Os hashes de IP e User-Agent permitem detectar mudanças sem
+   * registrar esses valores em claro.
+   */
   issueAccessToken(
     user: AuthenticatedUser,
     context: AccessTokenContext,
@@ -57,6 +64,7 @@ export class AuthTokenService {
     );
   }
 
+  /** Verifica assinatura, algoritmo, validade temporal e claims obrigatórios. */
   verifyAccessToken(token: string): AuthenticatedUser {
     try {
       const payload = jwt.verify(token, readKey(PUBLIC_KEY_ENV), {
