@@ -122,4 +122,20 @@ describe('document signing flow (integration)', () => {
         expect(JSON.stringify(body)).not.toContain('JavaScript');
       });
   });
+
+  it('rejects malformed multipart coordinates through the global validation pipe', async () => {
+    const original = await createPdf();
+    await request(app.getHttpServer())
+      .post('/api/v1/documents/sign')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .field('page', 'one')
+      .field('x', 'not-a-number')
+      .field('y', '20')
+      .attach('file', original, 'document.pdf')
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({ code: 'VAL_001', message: 'Validation failed' });
+        expect(JSON.stringify(body)).not.toContain('not-a-number');
+      });
+  });
 });
