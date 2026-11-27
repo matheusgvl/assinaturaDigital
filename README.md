@@ -126,7 +126,7 @@ O `.env.example` serve como referência compartilhada; o `.env` contém a config
 
 A auditoria sanitizada de proteção e histórico está registrada em [`docs/RNF-07-AUDIT.md`](docs/RNF-07-AUDIT.md). O `.env.example` é a única exceção permitida ao padrão de ignorar arquivos de ambiente.
 
-A validação obrigatória na inicialização está documentada em [`docs/RNF-08-VALIDATION.md`](docs/RNF-08-VALIDATION.md). A allowlist CORS explícita usa `CORS_ORIGINS`; o backend rejeita `*` e origens que não sejam URLs HTTP/HTTPS completas.
+A validação obrigatória na inicialização está documentada em [`docs/RNF-08-VALIDATION.md`](docs/RNF-08-VALIDATION.md). A allowlist CORS explícita usa `CORS_ORIGINS`; o backend rejeita `*` e origens que não sejam URLs HTTP/HTTPS completas. As respostas também incluem CSP restritiva com `default-src 'self'`, `script-src 'self'`, `object-src 'none'` e `frame-ancestors 'none'`.
 
 A arquitetura, as opções de conexão e as evidências de integração do PostgreSQL estão documentadas em [`docs/RNF-04-DATABASE.md`](docs/RNF-04-DATABASE.md).
 

@@ -1,5 +1,6 @@
 import { INestApplication, ValidationError, ValidationPipe } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
+import helmet from 'helmet';
 import { ApiExceptionFilter } from '../common/http/filters/api-exception.filter';
 import { API_ERROR_CODES } from '../common/http/errors/api-error-codes';
 import { ApiException } from '../common/http/errors/api.exception';
@@ -41,6 +42,19 @@ export function configureApp(
     origin: corsOrigins,
     credentials: true,
   });
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+    }),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
