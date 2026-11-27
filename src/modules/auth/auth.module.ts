@@ -17,6 +17,7 @@ import { TotpLoginTransaction } from './entities/totp-login-transaction.entity';
 import { TotpLoginService } from './totp-login.service';
 import { SecurityAlert } from './entities/security-alert.entity';
 import { TotpAlertService } from './totp-alert.service';
+import { PasskeyService } from './passkey.service';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { TotpAlertService } from './totp-alert.service';
     TotpRecoveryService,
     TotpLoginService,
     TotpAlertService,
+    PasskeyService,
   ],
   exports: [
     AuthService,

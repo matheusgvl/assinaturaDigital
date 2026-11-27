@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
   DataSource,
+  EntityManager,
   IsNull,
   LessThanOrEqual,
   MoreThan,
@@ -116,16 +117,34 @@ export class AuthService {
         if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
           user.lockedUntil = new Date(now.getTime() + LOCKOUT_MS);
         }
-        await this.users.save(user);
+        await this.users.update(
+          { id: user.id },
+          { failedLoginAttempts: user.failedLoginAttempts, lockedUntil: user.lockedUntil },
+        );
       }
       throw authError();
     }
 
-    user.failedLoginAttempts = 0;
-    user.lockedUntil = null;
-    await this.users.save(user);
+    await this.users.update({ id: user.id }, { failedLoginAttempts: 0, lockedUntil: null });
     await this.rateLimit.clearAccount(dto.email);
 
+    return this.dataSource.transaction(async (manager) => {
+      const current = await manager.getRepository(User).findOne({
+        where: { id: user.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!current || current.passwordHash !== passwordHash) throw authError();
+      return this.completePrimaryAuth(manager, current, userAgent, ip);
+    });
+  }
+
+  /** Aplica a mesma exigência de TOTP após senha ou passkey já validada. */
+  async completePrimaryAuth(
+    manager: EntityManager,
+    user: User,
+    userAgent: string | undefined,
+    ip: string,
+  ): Promise<LoginResult> {
     if (user.totpEnabled) {
       return {
         requiresSecondFactor: true,
@@ -133,11 +152,12 @@ export class AuthService {
           user.id,
           ip,
           userAgent,
+          manager,
         ),
       };
     }
 
-    return this.issueSession(user, userAgent, ip, now);
+    return this.issueSession(user, userAgent, ip, new Date(), false, manager);
   }
 
   /** Emite a sessão somente após a transação de segundo fator ser consumida. */
@@ -162,6 +182,7 @@ export class AuthService {
     ip: string,
     now: Date,
     secondFactorVerified = false,
+    manager?: EntityManager,
   ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -171,8 +192,8 @@ export class AuthService {
     const authenticatedUser = { id: user.id, email: user.email };
     const refreshToken = randomBytes(32).toString('base64url');
     const sessionId = randomUUID();
-    const issued = await this.dataSource.transaction(async (manager) => {
-      const sessions = manager.getRepository(Session);
+    const issue = async (transaction: EntityManager) => {
+      const sessions = transaction.getRepository(Session);
       await sessions.save(
         sessions.create({
           id: sessionId,
@@ -190,7 +211,8 @@ export class AuthService {
         ip,
         userAgent,
       });
-    });
+    };
+    const issued = manager ? await issue(manager) : await this.dataSource.transaction(issue);
 
     return {
       accessToken: issued,

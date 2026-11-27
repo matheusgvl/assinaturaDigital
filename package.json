@@ -33,6 +33,7 @@
     "@signpdf/placeholder-pdf-lib": "^4.0.0",
     "@signpdf/signer-p12": "^4.0.0",
     "@signpdf/signpdf": "^4.0.0",
+    "@simplewebauthn/server": "14.0.0",
     "argon2": "^0.45.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
