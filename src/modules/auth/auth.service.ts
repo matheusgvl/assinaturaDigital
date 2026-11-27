@@ -44,7 +44,7 @@ export type LoginResult =
       refreshToken: string;
       user: AuthenticatedUser;
     }
-  | { requiresSecondFactor: true; transactionId: string };
+  | { requiresSecondFactor: true; transactionId: string; auditUserId: string };
 
 function authError(): ApiException {
   return new ApiException(
@@ -164,6 +164,9 @@ export class AuthService {
           userAgent,
           manager,
         ),
+        // Dado interno retirado pelo controller antes da resposta. Permite
+        // auditoria associada ao titular sem ampliar o contrato público.
+        auditUserId: user.id,
       };
     }
 
@@ -236,7 +239,7 @@ export class AuthService {
     refreshToken: string,
     userAgent: string | undefined,
     ip: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string; userId: string }> {
     const now = new Date();
     const result = await this.dataSource.transaction(async (manager) => {
       const sessions = manager.getRepository(Session);
@@ -289,6 +292,7 @@ export class AuthService {
 
       return {
         reuseDetected: false as const,
+        userId: session.user.id,
         accessToken: this.tokens.issueAccessToken(
           { id: session.user.id, email: session.user.email },
           { sessionId: rotatedSessionId, ip, userAgent },
@@ -301,6 +305,7 @@ export class AuthService {
     return {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
+      userId: result.userId,
     };
   }
 
@@ -328,7 +333,7 @@ export class AuthService {
     }
   }
 
-  async revokeRefreshToken(refreshToken: string): Promise<void> {
+  async revokeRefreshToken(refreshToken: string): Promise<string | undefined> {
     const session = await this.sessions.findOne({
       where: { refreshTokenHash: hashRefreshToken(refreshToken) },
     });
@@ -336,6 +341,7 @@ export class AuthService {
       session.revokedAt = new Date();
       await this.sessions.save(session);
     }
+    return session?.userId;
   }
 
   /** Retorna somente sessões ativas e marca a sessão identificada pelo JWT. */

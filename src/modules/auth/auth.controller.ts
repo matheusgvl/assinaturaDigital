@@ -34,6 +34,8 @@ import { TotpEnrollmentService } from './totp-enrollment.service';
 import { TotpAlertService } from './totp-alert.service';
 import { PasskeyService } from './passkey.service';
 import { PasskeyRegistrationOptionsDto, PasskeyVerificationDto, RenamePasskeyDto } from './passkey.dto';
+import { AuditAction } from '../audit/audit-action.decorator';
+import type { AuditedRequest } from '../audit/audit.service';
 
 export const CSRF_TOKEN_COOKIE = 'csrf_token';
 
@@ -110,10 +112,11 @@ export class AuthController {
   }
 
   @Post('login')
+  @AuditAction('login')
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,
-    @Req() request: Request,
+    @Req() request: AuditedRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.auth.login(
@@ -121,16 +124,20 @@ export class AuthController {
       request.headers['user-agent'],
       request.ip ?? 'unknown',
     );
-    if ('requiresSecondFactor' in result) return result;
+    if ('requiresSecondFactor' in result) {
+      request.auditUserId = result.auditUserId;
+      return { requiresSecondFactor: true, transactionId: result.transactionId };
+    }
     setRefreshCookie(response, result.refreshToken);
     setCsrfCookie(response, randomBytes(32).toString('base64url'));
     return { accessToken: result.accessToken, user: result.user };
   }
 
   @Post('refresh')
+  @AuditAction('token_issued')
   @HttpCode(HttpStatus.OK)
   async refresh(
-    @Req() request: Request,
+    @Req() request: AuditedRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     assertCsrf(request);
@@ -142,20 +149,22 @@ export class AuthController {
       request.headers['user-agent'],
       request.ip ?? 'unknown',
     );
+    request.auditUserId = result.userId;
     setRefreshCookie(response, result.refreshToken);
     setCsrfCookie(response, randomBytes(32).toString('base64url'));
     return { accessToken: result.accessToken };
   }
 
   @Post('logout')
+  @AuditAction('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
-    @Req() request: Request,
+    @Req() request: AuditedRequest,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     assertCsrf(request);
     const token = readCookie(request, REFRESH_TOKEN_COOKIE);
-    if (token) await this.auth.revokeRefreshToken(token);
+    if (token) request.auditUserId = await this.auth.revokeRefreshToken(token);
     const authorization = request.headers.authorization;
     const accessToken =
       typeof authorization === 'string' && authorization.startsWith('Bearer ')
@@ -200,6 +209,7 @@ export class AuthController {
   }
 
   @Post('password')
+  @AuditAction('password_change')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async changePassword(
@@ -216,6 +226,7 @@ export class AuthController {
   }
 
   @Post('totp/setup/confirm')
+  @AuditAction('totp_enabled')
   @UseGuards(JwtAuthGuard)
   confirmTotpSetup(
     @Req() request: AuthenticatedRequest,
@@ -225,6 +236,7 @@ export class AuthController {
   }
 
   @Post('totp/login/verify')
+  @AuditAction('login')
   @HttpCode(HttpStatus.OK)
   async verifyTotpLogin(
     @Body() dto: TotpLoginVerificationDto,
@@ -255,6 +267,7 @@ export class AuthController {
   }
 
   @Post('passkeys/registration/verify')
+  @AuditAction('passkey_registered')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   verifyPasskeyRegistration(@Req() request: AuthenticatedRequest, @Body() dto: PasskeyVerificationDto) {
@@ -268,14 +281,18 @@ export class AuthController {
   }
 
   @Post('passkeys/authentication/verify')
+  @AuditAction('login')
   @HttpCode(HttpStatus.OK)
   async verifyPasskeyAuthentication(
-    @Req() request: Request,
+    @Req() request: AuditedRequest,
     @Body() dto: PasskeyVerificationDto,
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.passkeys.verifyAuthentication(dto, passkeyContext(request));
-    if ('requiresSecondFactor' in result) return { confirmed: true, ...result };
+    if ('requiresSecondFactor' in result) {
+      request.auditUserId = result.auditUserId;
+      return { confirmed: true, requiresSecondFactor: true, transactionId: result.transactionId };
+    }
     setRefreshCookie(response, result.refreshToken);
     setCsrfCookie(response, randomBytes(32).toString('base64url'));
     return { confirmed: true, accessToken: result.accessToken, user: result.user };
@@ -299,6 +316,7 @@ export class AuthController {
   }
 
   @Delete('passkeys/:id')
+  @AuditAction('passkey_revoked')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async revokePasskey(
