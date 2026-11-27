@@ -31,6 +31,7 @@ export class DocumentsService {
     userId: string,
   ): Promise<{ buffer: Buffer; fileName: string }> {
     const original = this.files.validate(file);
+    const originalHash = this.files.sha256(original);
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user) {
       throw new ApiException(API_ERROR_CODES.AUTHENTICATION, HttpStatus.UNAUTHORIZED, 'Authentication required');
@@ -49,6 +50,7 @@ export class DocumentsService {
           dto.x,
           dto.y,
           id,
+          originalHash,
           signedAt,
         );
       } catch {
@@ -58,7 +60,7 @@ export class DocumentsService {
         this.signatures.create({
           id,
           userId: user.id,
-          originalHash: this.files.sha256(original),
+          originalHash,
           signedHash: this.files.sha256(signed),
           signerName: user.name,
           signedAt,

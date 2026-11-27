@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { generateKeyPairSync } from 'node:crypto';
+import { inflateSync } from 'node:zlib';
 import { PDFDocument } from 'pdf-lib';
 import request from 'supertest';
 import type { Response as SuperagentResponse } from 'superagent';
@@ -23,6 +24,22 @@ async function createPdf(): Promise<Buffer> {
   const page = document.addPage([400, 400]);
   page.drawText('Documento de integração');
   return Buffer.from(await document.save({ useObjectStreams: false }));
+}
+
+function inflatePdfStreams(pdf: Buffer): string {
+  const source = pdf.toString('latin1');
+  const text: string[] = [];
+  const streamPattern = /\/Filter\s*\/FlateDecode[\s\S]*?stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  for (const match of source.matchAll(streamPattern)) {
+    try {
+      text.push(inflateSync(Buffer.from(match[1], 'latin1')).toString('latin1'));
+    } catch {
+      // Signature and unrelated streams are not necessarily text streams.
+    }
+  }
+  return text.join('\n').replace(/<([0-9a-f]+)>/gi, (_, hex: string) =>
+    Buffer.from(hex, 'hex').toString('latin1'),
+  );
 }
 
 function pdfParser(
@@ -85,6 +102,9 @@ describe('document signing flow (integration)', () => {
     expect(signed.toString('latin1')).toMatch(/\/ByteRange\s*\[/);
     expect(signed.toString('latin1')).toMatch(/\/Contents\s*</);
     expect(sign.headers['content-type']).toMatch(/application\/pdf/);
+    const visualSeal = inflatePdfStreams(signed);
+    expect(visualSeal).toContain('SHA-256:');
+    expect(visualSeal).toContain('ID:');
 
     await request(app.getHttpServer())
       .post('/api/v1/documents/verify')
