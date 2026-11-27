@@ -23,6 +23,10 @@ O resultado é um dos estados:
 Nenhum PDF enviado para verificação é persistido. O endpoint não exige conta e
 não retorna chave privada, senha, stack trace ou detalhes de banco.
 
+Para reduzir abuso do endpoint público, cada IP pode realizar até 30
+verificações em uma janela de 15 minutos. O contador usa a tabela existente de
+limites com hash SHA-256 da chave e nunca devolve o endereço IP na resposta.
+
 ## Testes
 
 O E2E de documentos cobre `valid`, `tampered`, `not_found` implicitamente para

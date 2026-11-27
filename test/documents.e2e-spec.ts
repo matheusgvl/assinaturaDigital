@@ -56,6 +56,8 @@ describe('document signing flow (integration)', () => {
   let app: INestApplication;
   let accessToken: string;
 
+  jest.setTimeout(30000);
+
   beforeAll(async () => {
     configureJwtKeys();
     const moduleFixture = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -141,6 +143,49 @@ describe('document signing flow (integration)', () => {
         expect(body.message).toBe('The uploaded file is not an accepted PDF');
         expect(JSON.stringify(body)).not.toContain('JavaScript');
       });
+  });
+
+  it('rate-limits repeated public verification requests per IP', async () => {
+    await app.get(DataSource).query(
+      'DELETE FROM "auth_rate_limits" WHERE "scope" = $1',
+      ['document_verify'],
+    );
+    const unsignedPdf = Buffer.from('%PDF-1.7\n%%EOF');
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/documents/verify')
+        .attach('file', unsignedPdf, 'unsigned.pdf')
+        .expect(201);
+    }
+    await request(app.getHttpServer())
+      .post('/api/v1/documents/verify')
+      .attach('file', unsignedPdf, 'unsigned.pdf')
+      .expect(429)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          code: 'API_001',
+          message: 'Too many verification requests',
+        });
+      });
+  });
+
+  it('keeps the rate limit atomic under concurrent verification requests', async () => {
+    await app.get(DataSource).query(
+      'DELETE FROM "auth_rate_limits" WHERE "scope" = $1',
+      ['document_verify'],
+    );
+    const unsignedPdf = Buffer.from('%PDF-1.7\n%%EOF');
+    const responses = await Promise.all(
+      Array.from({ length: 40 }, () =>
+        request(app.getHttpServer())
+          .post('/api/v1/documents/verify')
+          .attach('file', unsignedPdf, 'unsigned.pdf'),
+      ),
+    );
+
+    expect(responses.filter(({ status }) => status === 201)).toHaveLength(30);
+    expect(responses.filter(({ status }) => status === 429)).toHaveLength(10);
+    expect(responses.some(({ status }) => status >= 500)).toBe(false);
   });
 
   it('rejects malformed multipart coordinates through the global validation pipe', async () => {

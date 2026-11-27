@@ -9,7 +9,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard, type AuthenticatedRequest } from '../auth/jwt-auth.guard';
 import { DocumentsService } from './documents.service';
 import { SignDocumentDto } from './document.dto';
@@ -37,7 +37,7 @@ export class DocumentsController {
 
   @Post('verify')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
-  verify(@UploadedFile() file: Express.Multer.File) {
-    return this.documents.verify(file);
+  verify(@UploadedFile() file: Express.Multer.File, @Req() request: Request) {
+    return this.documents.verify(file, request.ip ?? 'unknown');
   }
 }
