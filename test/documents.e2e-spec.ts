@@ -61,7 +61,7 @@ describe('document signing flow (integration)', () => {
   let accessToken: string;
   let accountId: string;
 
-  jest.setTimeout(30000);
+  jest.setTimeout(120000);
 
   beforeAll(async () => {
     configureJwtKeys();

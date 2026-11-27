@@ -7,7 +7,7 @@ import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { DocumentRateLimitService } from './document-rate-limit.service';
 import { PdfFileService } from './pdf-file.service';
-import { PdfSignatureService } from './pdf-signature.service';
+import { PdfSandboxService } from './pdf-sandbox.service';
 import { SigningKeysModule } from './signing-keys.module';
 
 @Module({
@@ -21,7 +21,7 @@ import { SigningKeysModule } from './signing-keys.module';
     DocumentsService,
     DocumentRateLimitService,
     PdfFileService,
-    PdfSignatureService,
+    PdfSandboxService,
   ],
 })
 export class DocumentsModule {}
