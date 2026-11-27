@@ -1,5 +1,12 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -45,6 +52,14 @@ export class ChangePasswordDto {
   @MinLength(12)
   @MaxLength(256)
   newPassword!: string;
+}
+
+export class TotpSetupConfirmationDto {
+  @IsUUID()
+  setupId!: string;
+
+  @Matches(/^\d{6}$/)
+  code!: string;
 }
 
 export interface AuthenticatedUser {
