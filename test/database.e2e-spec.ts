@@ -96,14 +96,20 @@ describe('PostgreSQL integration', () => {
     await withEnvironment(
       { DATABASE_URL: unavailableUrl.toString(), DATABASE_SSL: 'false' },
       async () => {
-        const moduleFixture = await compileApplication();
-        const app = moduleFixture.createNestApplication();
+        let startupError: unknown;
+        let app: INestApplication | undefined;
 
         try {
-          await expect(app.init()).rejects.toThrow();
+          const moduleFixture = await compileApplication();
+          app = moduleFixture.createNestApplication();
+          await app.init();
+        } catch (error) {
+          startupError = error;
         } finally {
           await closeApplication(app);
         }
+
+        expect(startupError).toBeDefined();
       },
     );
   });
@@ -116,11 +122,12 @@ describe('PostgreSQL integration', () => {
     await withEnvironment(
       { DATABASE_URL: invalidUrl.toString(), DATABASE_SSL: 'false' },
       async () => {
-        const moduleFixture = await compileApplication();
-        const app = moduleFixture.createNestApplication();
         let startupError: unknown;
+        let app: INestApplication | undefined;
 
         try {
+          const moduleFixture = await compileApplication();
+          app = moduleFixture.createNestApplication();
           await app.init();
         } catch (error) {
           startupError = error;
