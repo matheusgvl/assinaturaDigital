@@ -3,19 +3,31 @@ import { registerAs } from '@nestjs/config';
 export const DEFAULT_PORT = 3000;
 export const PORT_ENV_NAME = 'PORT';
 
-export function resolvePort(environment: NodeJS.ProcessEnv): number {
+export interface ValidatedEnvironment {
+  PORT: number;
+}
+
+export function resolvePort(environment: Record<string, unknown>): number {
   const configuredPort = environment[PORT_ENV_NAME];
 
-  if (!configuredPort?.trim()) {
-    return DEFAULT_PORT;
+  if (typeof configuredPort !== 'string' || !configuredPort.trim()) {
+    throw new Error('PORT is required and must be an integer between 1 and 65535');
   }
 
   const port = Number(configuredPort);
-  return Number.isInteger(port) && port >= 1 && port <= 65535
-    ? port
-    : DEFAULT_PORT;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('PORT is required and must be an integer between 1 and 65535');
+  }
+
+  return port;
+}
+
+export function validateEnvironment(
+  environment: Record<string, unknown>,
+): ValidatedEnvironment {
+  return { PORT: resolvePort(environment) };
 }
 
 export default registerAs('app', () => ({
-  port: resolvePort(process.env),
+  port: validateEnvironment(process.env).PORT,
 }));
