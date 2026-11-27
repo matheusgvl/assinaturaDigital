@@ -10,6 +10,7 @@ import { Session } from './entities/session.entity';
 import { User } from './entities/user.entity';
 import { AccessTokenDenylist } from './entities/access-token-denylist.entity';
 import { TotpSecret } from './entities/totp-secret.entity';
+import { TotpEnrollmentService } from './totp-enrollment.service';
 
 @Module({
   imports: [
@@ -22,12 +23,14 @@ import { TotpSecret } from './entities/totp-secret.entity';
     AccessTokenPolicyService,
     JwtAuthGuard,
     LoginRateLimitService,
+    TotpEnrollmentService,
   ],
   exports: [
     AuthService,
     AuthTokenService,
     AccessTokenPolicyService,
     JwtAuthGuard,
+    TotpEnrollmentService,
   ],
 })
 export class AuthModule {}

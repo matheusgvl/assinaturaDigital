@@ -20,7 +20,13 @@ import {
   REFRESH_TOKEN_COOKIE,
   REFRESH_TOKEN_TTL_MS,
 } from './auth.service';
-import { ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  TotpSetupConfirmationDto,
+} from './auth.dto';
+import { TotpEnrollmentService } from './totp-enrollment.service';
 
 export const CSRF_TOKEN_COOKIE = 'csrf_token';
 
@@ -79,7 +85,10 @@ function assertCsrf(request: Request): void {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly totpEnrollment: TotpEnrollmentService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -184,6 +193,21 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ): Promise<void> {
     await this.auth.changePassword(request.user.id, dto);
+  }
+
+  @Post('totp/setup')
+  @UseGuards(JwtAuthGuard)
+  setupTotp(@Req() request: AuthenticatedRequest) {
+    return this.totpEnrollment.startSetup(request.user.id, request.user.email);
+  }
+
+  @Post('totp/setup/confirm')
+  @UseGuards(JwtAuthGuard)
+  confirmTotpSetup(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: TotpSetupConfirmationDto,
+  ) {
+    return this.totpEnrollment.confirmSetup(request.user.id, dto);
   }
 
   @Delete('sessions/:id')
