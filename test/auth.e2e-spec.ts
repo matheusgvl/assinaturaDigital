@@ -495,4 +495,41 @@ describe('authentication flow (integration)', () => {
     ]);
     expect(responses.some((response) => response.status >= 500)).toBe(false);
   });
+
+  it('revokes the entire refresh family after token reuse', async () => {
+    const email = `refresh-family-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Refresh Family', email, password })
+      .expect(201);
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+    const originalCookie = cookieValue(login, 'refresh_token');
+    const originalCsrfCookie = cookieValue(login, 'csrf_token');
+    const originalCsrf = originalCsrfCookie.slice('csrf_token='.length);
+
+    const rotation = await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [originalCookie, originalCsrfCookie])
+      .set('X-CSRF-Token', originalCsrf)
+      .expect(200);
+    const rotatedCookie = cookieValue(rotation, 'refresh_token');
+    const rotatedCsrfCookie = cookieValue(rotation, 'csrf_token');
+    const rotatedCsrf = rotatedCsrfCookie.slice('csrf_token='.length);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [originalCookie, rotatedCsrfCookie])
+      .set('X-CSRF-Token', rotatedCsrf)
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [rotatedCookie, rotatedCsrfCookie])
+      .set('X-CSRF-Token', rotatedCsrf)
+      .expect(401);
+  });
 });
