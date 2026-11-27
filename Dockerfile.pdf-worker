@@ -3,6 +3,6 @@ WORKDIR /worker
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
-COPY dist/modules/documents/pdf-signature.service.js dist/modules/documents/pdf-seal-placement.js dist/modules/documents/pdf-worker.js dist/modules/documents/pdf-worker-protocol.js ./dist/modules/documents/
+COPY dist/modules/documents/pdf-signature.service.js dist/modules/documents/pdf-seal-placement.js dist/modules/documents/pdf-structure.js dist/modules/documents/pdf-worker.js dist/modules/documents/pdf-worker-protocol.js ./dist/modules/documents/
 USER 10001:10001
 ENTRYPOINT ["node", "--max-old-space-size=224", "dist/modules/documents/pdf-worker.js"]
