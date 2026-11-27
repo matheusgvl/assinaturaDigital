@@ -13,7 +13,8 @@ import { Session } from './entities/session.entity';
 import { User } from './entities/user.entity';
 
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
-export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// O refresh token permanece utilizavel por no maximo sete dias, conforme REQ-19.
+export const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
 const GENERIC_AUTH_MESSAGE = 'Invalid credentials';

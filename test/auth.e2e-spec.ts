@@ -84,6 +84,7 @@ describe('authentication flow (integration)', () => {
     expect(login.headers['set-cookie']).toEqual(
       expect.arrayContaining([
         expect.stringContaining('refresh_token='),
+        expect.stringContaining('Max-Age=604800'),
         expect.stringContaining('SameSite=Strict'),
         expect.stringContaining('csrf_token='),
       ]),
