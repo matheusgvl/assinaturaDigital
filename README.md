@@ -115,7 +115,7 @@ A validação obrigatória na inicialização está documentada em [`docs/RNF-08
 
 ## Processo de desenvolvimento
 
-Cada requisito deve ser trabalhado em sua própria branch e issue, com commits terminados em `Ref #ID`, revisão por Pull Request e merge posterior na `main`. Esta entrega é exclusiva do RNF-01 / Issue #67 e não altera o repositório do frontend.
+Cada requisito deve ser trabalhado em sua própria branch e issue, com commits terminados em `Ref #ID`, revisão por Pull Request e merge posterior na `main`. O backend e o frontend permanecem em repositórios independentes.
 
 ## Validação
 

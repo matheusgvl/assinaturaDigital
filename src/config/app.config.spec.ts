@@ -11,7 +11,19 @@ describe('application configuration', () => {
     );
   });
 
-  it.each(['', 'not-a-port', '0', '65536'])(
+  it.each([
+    '',
+    'not-a-port',
+    '3e3',
+    '0xBB8',
+    '3000.5',
+    '3000abc',
+    ' 3000',
+    '3000 ',
+    '30 00',
+    '0',
+    '65536',
+  ])(
     'rejects invalid PORT value %s',
     (value) => {
       expect(() => resolvePort({ [PORT_ENV_NAME]: value })).toThrow(
