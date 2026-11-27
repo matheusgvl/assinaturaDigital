@@ -91,7 +91,7 @@ export class TotpEnrollmentService {
     dto: TotpSetupConfirmationDto,
   ): Promise<{ codes: string[] }> {
     let recoveryCodes: string[] = [];
-    await this.dataSource.transaction(async (manager) => {
+    const confirmed = await this.dataSource.transaction(async (manager) => {
       const secrets = manager.getRepository(TotpSecret);
       const users = manager.getRepository(User);
       const setup = await secrets.findOne({
@@ -105,7 +105,7 @@ export class TotpEnrollmentService {
         !setup.pendingExpiresAt ||
         setup.pendingExpiresAt <= now
       ) {
-        throw invalidTotp();
+        return false;
       }
 
       let valid = false;
@@ -125,7 +125,7 @@ export class TotpEnrollmentService {
           setup.pendingExpiresAt = now;
         }
         await secrets.save(setup);
-        throw invalidTotp();
+        return false;
       }
 
       setup.confirmedAt = now;
@@ -134,8 +134,10 @@ export class TotpEnrollmentService {
       await secrets.save(setup);
       await users.update({ id: userId }, { totpEnabled: true });
       recoveryCodes = await this.recovery.replaceCodes(manager, userId);
+      return true;
     });
 
+    if (!confirmed) throw invalidTotp();
     return { codes: recoveryCodes };
   }
 

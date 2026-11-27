@@ -25,6 +25,7 @@ import {
   LoginDto,
   RegisterDto,
   TotpSetupConfirmationDto,
+  TotpLoginVerificationDto,
 } from './auth.dto';
 import { TotpEnrollmentService } from './totp-enrollment.service';
 
@@ -108,6 +109,7 @@ export class AuthController {
       request.headers['user-agent'],
       request.ip ?? 'unknown',
     );
+    if ('requiresSecondFactor' in result) return result;
     setRefreshCookie(response, result.refreshToken);
     setCsrfCookie(response, randomBytes(32).toString('base64url'));
     return { accessToken: result.accessToken, user: result.user };
@@ -208,6 +210,23 @@ export class AuthController {
     @Body() dto: TotpSetupConfirmationDto,
   ) {
     return this.totpEnrollment.confirmSetup(request.user.id, dto);
+  }
+
+  @Post('totp/login/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyTotpLogin(
+    @Body() dto: TotpLoginVerificationDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.auth.verifySecondFactor(
+      dto,
+      request.headers['user-agent'],
+      request.ip ?? 'unknown',
+    );
+    setRefreshCookie(response, result.refreshToken);
+    setCsrfCookie(response, randomBytes(32).toString('base64url'));
+    return { accessToken: result.accessToken, user: result.user };
   }
 
   @Delete('sessions/:id')

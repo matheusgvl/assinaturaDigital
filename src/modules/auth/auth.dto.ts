@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -60,6 +61,20 @@ export class TotpSetupConfirmationDto {
 
   @Matches(/^\d{6}$/)
   code!: string;
+}
+
+export class TotpLoginVerificationDto {
+  @IsUUID()
+  transactionId!: string;
+
+  @IsOptional()
+  @Matches(/^\d{6}$/)
+  code?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  recoveryCode?: string;
 }
 
 export interface AuthenticatedUser {

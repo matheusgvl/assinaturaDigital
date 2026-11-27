@@ -190,7 +190,7 @@ describe('authentication flow (integration)', () => {
       .expect(401);
   });
 
-  it('does not issue an access token when a second factor is enabled', async () => {
+  it('does not issue an access token before a second-factor transaction is verified', async () => {
     const email = `totp-guard-${Date.now()}@example.com`;
     const password = 'Strong-password9';
     const register = await request(app.getHttpServer())
@@ -206,10 +206,10 @@ describe('authentication flow (integration)', () => {
     const login = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email, password })
-      .expect(403);
+      .expect(200);
     expect(login.body).toMatchObject({
-      code: 'AUTH_002',
-      message: 'Additional verification required',
+      requiresSecondFactor: true,
+      transactionId: expect.any(String),
     });
     expect(login.body.accessToken).toBeUndefined();
     expect(login.headers['set-cookie']).toBeUndefined();
