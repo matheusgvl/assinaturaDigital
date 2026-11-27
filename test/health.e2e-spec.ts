@@ -42,9 +42,20 @@ describe('Health endpoint (e2e)', () => {
       .expect(404),
   );
 
-  it('returns 404 for an unknown route', () =>
-    request(app.getHttpServer()).get('/unknown').expect(404),
-  );
+  it('returns a stable, non-sensitive error for an unknown route', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/unknown')
+      .expect('Content-Type', /json/)
+      .expect(404);
+
+    expect(response.body).toEqual({
+      code: 'API_001',
+      message: 'Resource not found',
+      timestamp: expect.any(String),
+      path: '/unknown',
+    });
+    expect(JSON.stringify(response.body)).not.toMatch(/stack|sql|secret/i);
+  });
 
   it('does not expose the Express fingerprint header', () =>
     request(app.getHttpServer())
