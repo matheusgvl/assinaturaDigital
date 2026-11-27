@@ -95,6 +95,20 @@ HTTP conventions, expected statuses, and the detailed health-check contract are 
 
 The current environment configuration is documented in [`docs/RNF-05-CONFIG.md`](docs/RNF-05-CONFIG.md). Only `PORT` is currently used; it defaults locally to `3000` when absent. Credentials and future database/authentication settings are not created in this issue.
 
+## Arquivo `.env.example`
+
+O arquivo versionado [`.env.example`](.env.example) documenta a única variável atualmente usada, `PORT`, sem valor real. Para configurar uma cópia local somente quando ainda não existir um `.env`:
+
+```bash
+cp .env.example .env
+```
+
+```powershell
+Copy-Item .env.example .env
+```
+
+O `.env.example` serve como referência compartilhada; o `.env` contém a configuração local e não deve ser versionado. A porta pode ser ajustada no `.env`; quando estiver vazia ou ausente, o backend usa `3000`. Sempre que uma funcionalidade introduzir uma nova variável, a mesma branch deve atualizar o exemplo e a documentação correspondente, sem inserir valores reais.
+
 ## Processo de desenvolvimento
 
 Cada requisito deve ser trabalhado em sua própria branch e issue, com commits terminados em `Ref #ID`, revisão por Pull Request e merge posterior na `main`. Esta entrega é exclusiva do RNF-01 / Issue #67 e não altera o repositório do frontend.
