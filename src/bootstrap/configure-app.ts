@@ -1,6 +1,7 @@
 import { INestApplication, ValidationError, ValidationPipe } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
 import helmet from 'helmet';
+import type { NextFunction, Request, Response } from 'express';
 import { ApiExceptionFilter } from '../common/http/filters/api-exception.filter';
 import { API_ERROR_CODES } from '../common/http/errors/api-error-codes';
 import { ApiException } from '../common/http/errors/api.exception';
@@ -36,11 +37,16 @@ export function configureApp(
   app: INestApplication,
   corsOrigins = resolveCorsOrigins(process.env),
 ): INestApplication {
-  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  const http = app.getHttpAdapter().getInstance();
+  http.disable('x-powered-by');
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    // X-CSRF-Token e necessario para o double-submit cookie do refresh/logout.
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-ID', 'X-CSRF-Token'],
+    maxAge: 600,
   });
   app.use(
     helmet({
@@ -53,8 +59,30 @@ export function configureApp(
           frameAncestors: ["'none'"],
         },
       },
+      frameguard: { action: 'deny' },
+      noSniff: true,
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      // HSTS so deve ser enviado em producao e quando a requisicao chegou por HTTPS.
+      strictTransportSecurity: false,
+      xXssProtection: true,
     }),
   );
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    if (process.env.NODE_ENV === 'production' && request.secure) {
+      response.setHeader(
+        'Strict-Transport-Security',
+        'max-age=63072000; includeSubDomains; preload',
+      );
+    }
+    if (request.path.startsWith('/api/v1')) {
+      response.setHeader('Cache-Control', 'no-store');
+    }
+    response.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=()',
+    );
+    next();
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
