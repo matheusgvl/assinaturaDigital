@@ -11,10 +11,18 @@ import { User } from './entities/user.entity';
 import { AccessTokenDenylist } from './entities/access-token-denylist.entity';
 import { TotpSecret } from './entities/totp-secret.entity';
 import { TotpEnrollmentService } from './totp-enrollment.service';
+import { TotpRecoveryCode } from './entities/totp-recovery-code.entity';
+import { TotpRecoveryService } from './totp-recovery.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Session, AccessTokenDenylist, TotpSecret]),
+    TypeOrmModule.forFeature([
+      User,
+      Session,
+      AccessTokenDenylist,
+      TotpSecret,
+      TotpRecoveryCode,
+    ]),
   ],
   controllers: [AuthController],
   providers: [
@@ -24,6 +32,7 @@ import { TotpEnrollmentService } from './totp-enrollment.service';
     JwtAuthGuard,
     LoginRateLimitService,
     TotpEnrollmentService,
+    TotpRecoveryService,
   ],
   exports: [
     AuthService,
@@ -31,6 +40,7 @@ import { TotpEnrollmentService } from './totp-enrollment.service';
     AccessTokenPolicyService,
     JwtAuthGuard,
     TotpEnrollmentService,
+    TotpRecoveryService,
   ],
 })
 export class AuthModule {}

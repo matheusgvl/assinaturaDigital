@@ -11,6 +11,7 @@ import { TotpSecret } from './entities/totp-secret.entity';
 import { createOtpAuthUri, generateTotpSecret, verifyTotp } from './totp';
 import { decryptTotpSecret, encryptTotpSecret } from './totp-crypto';
 import type { TotpSetupConfirmationDto } from './auth.dto';
+import { TotpRecoveryService } from './totp-recovery.service';
 
 const SETUP_TTL_MS = 10 * 60 * 1000;
 const MAX_SETUP_ATTEMPTS = 5;
@@ -41,6 +42,7 @@ export class TotpEnrollmentService {
     private readonly users: Repository<User>,
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly recovery: TotpRecoveryService,
   ) {}
 
   /** Cria um segredo temporário e retorna somente a imagem QR de enrollment. */
@@ -88,6 +90,7 @@ export class TotpEnrollmentService {
     userId: string,
     dto: TotpSetupConfirmationDto,
   ): Promise<{ codes: string[] }> {
+    let recoveryCodes: string[] = [];
     await this.dataSource.transaction(async (manager) => {
       const secrets = manager.getRepository(TotpSecret);
       const users = manager.getRepository(User);
@@ -130,10 +133,10 @@ export class TotpEnrollmentService {
       setup.setupAttempts = 0;
       await secrets.save(setup);
       await users.update({ id: userId }, { totpEnabled: true });
+      recoveryCodes = await this.recovery.replaceCodes(manager, userId);
     });
 
-    // A próxima issue acrescenta os códigos de recuperação nesta mesma resposta.
-    return { codes: [] };
+    return { codes: recoveryCodes };
   }
 
   private masterKey(): Buffer {
