@@ -47,6 +47,7 @@ function hashRefreshToken(token: string): string {
 
 @Injectable()
 export class AuthService {
+  /** Cria o usuário e registra o instante a partir do qual seus tokens são válidos. */
   async register(
     dto: RegisterDto,
   ): Promise<Pick<User, 'id' | 'name' | 'email'>> {
@@ -83,6 +84,7 @@ export class AuthService {
     }
   }
 
+  /** Valida credenciais, aplica rate limit e cria uma sessão com refresh opaco. */
   async login(
     dto: LoginDto,
     userAgent: string | undefined,
@@ -159,6 +161,7 @@ export class AuthService {
     };
   }
 
+  /** Faz a rotação de uso único sob lock pessimista e preserva a família. */
   async refresh(
     refreshToken: string,
     userAgent: string | undefined,
@@ -224,6 +227,7 @@ export class AuthService {
     };
   }
 
+  /** Coloca o access token ainda válido na denylist sem persistir seu conteúdo. */
   async revokeAccessToken(token: string | undefined): Promise<void> {
     if (!token) return;
     try {
@@ -257,6 +261,7 @@ export class AuthService {
     }
   }
 
+  /** Retorna somente sessões ativas e marca a sessão identificada pelo JWT. */
   async listActiveSessions(userId: string, currentSessionId?: string) {
     const sessions = await this.sessions.find({
       where: { userId, revokedAt: IsNull(), expiresAt: MoreThan(new Date()) },
@@ -295,6 +300,7 @@ export class AuthService {
     );
   }
 
+  /** Atualiza a senha e revoga todas as sessões em uma única transação. */
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
     validatePasswordPolicy(dto.newPassword);
     await this.dataSource.transaction(async (manager) => {
