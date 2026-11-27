@@ -72,6 +72,9 @@ export class DocumentsService {
           signerName: user.name,
           signedAt,
           sourceIp,
+          sealPage: dto.page,
+          sealX: dto.x,
+          sealY: dto.y,
         }),
       );
       return { buffer: signed, fileName: 'documento-assinado.pdf' };

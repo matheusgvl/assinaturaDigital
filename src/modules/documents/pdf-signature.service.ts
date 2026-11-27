@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { P12Signer } from '@signpdf/signer-p12';
 import signpdf from '@signpdf/signpdf';
 import forge from 'node-forge';
 import { createHash } from 'node:crypto';
+import { resolveSealPlacement, SEAL_HEIGHT, SEAL_WIDTH } from './pdf-seal-placement';
 
 export type PdfSignatureInspection = {
   present: boolean;
@@ -59,64 +60,44 @@ export class PdfSignatureService {
     const pages = document.getPages();
     const page = pages[pageNumber - 1];
     if (!page) throw new Error('page out of range');
-    const { width, height } = page.getSize();
-    const sealWidth = 180;
-    const sealHeight = 60;
-    if (x + sealWidth > width || y + sealHeight > height) {
-      throw new Error('seal out of range');
-    }
-
+    const { point, rotation, unit } = resolveSealPlacement(page, x, y);
+    const rotate = degrees(rotation);
     const font = await document.embedFont(StandardFonts.Helvetica);
     page.drawRectangle({
-      x,
-      y,
-      width: sealWidth,
-      height: sealHeight,
+      ...point(0, 0),
+      width: SEAL_WIDTH / unit,
+      height: SEAL_HEIGHT / unit,
+      rotate,
       color: rgb(0.93, 0.96, 1),
       borderColor: rgb(0.12, 0.25, 0.45),
-      borderWidth: 1,
+      borderWidth: 1 / unit,
       opacity: 0.94,
     });
-    page.drawText(`Assinado por ${signerName.slice(0, 42)}`, {
-      x: x + 8,
-      y: y + 34,
-      size: 8,
-      font,
-      color: rgb(0.05, 0.1, 0.2),
-      maxWidth: sealWidth - 16,
-    });
-    page.drawText(signedAt.toISOString(), {
-      x: x + 8,
-      y: y + 35,
-      size: 5.5,
-      font,
-      color: rgb(0.05, 0.1, 0.2),
-      maxWidth: sealWidth - 16,
-    });
-    page.drawText(`SHA-256: ${documentHash.slice(0, 32)}`, {
-      x: x + 8,
-      y: y + 25,
-      size: 5.5,
-      font,
-      color: rgb(0.05, 0.1, 0.2),
-      maxWidth: sealWidth - 16,
-    });
-    page.drawText(documentHash.slice(32), {
-      x: x + 8,
-      y: y + 16,
-      size: 5.5,
-      font,
-      color: rgb(0.05, 0.1, 0.2),
-      maxWidth: sealWidth - 16,
-    });
-    page.drawText(`ID: ${signatureId}`, {
-      x: x + 8,
-      y: y + 7,
-      size: 5.5,
-      font,
-      color: rgb(0.05, 0.1, 0.2),
-      maxWidth: sealWidth - 16,
-    });
+
+    const charset = new Set(font.getCharacterSet());
+    const label = Array.from(`Assinado por ${signerName.normalize('NFC')}`, (char) =>
+      charset.has(char.codePointAt(0)!) ? char : '?',
+    ).join('');
+    let title = label;
+    while (font.widthOfTextAtSize(title, 8) > SEAL_WIDTH - 16) {
+      title = `${title.slice(0, title === label ? -1 : -2)}…`;
+    }
+    const lines = [
+      [title, 47, 8],
+      [signedAt.toISOString(), 36, 5.5],
+      [`SHA-256: ${documentHash.slice(0, 32)}`, 25, 5.5],
+      [documentHash.slice(32), 16, 5.5],
+      [`ID: ${signatureId}`, 7, 5.5],
+    ] as const;
+    for (const [value, offset, size] of lines) {
+      page.drawText(value, {
+        ...point(8, offset),
+        size: size / unit,
+        rotate,
+        font,
+        color: rgb(0.05, 0.1, 0.2),
+      });
+    }
 
     pdflibAddPlaceholder({
       pdfDoc: document,
