@@ -33,9 +33,11 @@ O `.gitignore` já exclui `.env` e `.env.*`, preservando a exceção existente p
 
 ## Pendências relacionadas
 
-- Issue #71: documentação completa e padronizada em `.env.example`.
+- RNF-06 / Issue #71: arquivo `.env.example` documentado e versionável nesta branch.
 - Issue #72: proteção formal do `.env` no repositório e histórico.
 - Issue #73: validação obrigatória das variáveis na inicialização.
 - Issue #69: PostgreSQL e configurações de banco.
 
-Não foram criadas variáveis fictícias para requisitos futuros.
+O RNF-06 foi implementado nesta branch com o arquivo `.env.example`. A auditoria formal de arquivos `.env` e do histórico pertence à Issue #72, e a validação obrigatória na inicialização pertence à Issue #73.
+
+Sempre que uma nova funcionalidade introduzir uma variável de ambiente, sua branch deve atualizar `.env.example` e esta documentação, sem inserir valores reais.
