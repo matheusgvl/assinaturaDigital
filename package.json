@@ -25,7 +25,7 @@
     "security:audit": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.0",
+    "@nestjs/common": "^12.6.0",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^12.6.0",
     "@nestjs/platform-express": "^11.0.0",
