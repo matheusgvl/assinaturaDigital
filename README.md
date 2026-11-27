@@ -79,7 +79,7 @@ test/
 └── migrations.e2e-spec.ts    # criação e histórico da fixture PostgreSQL
 ```
 
-Controllers recebem requisições e delegam aos services. Services concentram regras de domínio e não conhecem a interface visual. A infraestrutura PostgreSQL é criada pelo `DatabaseModule`, que recebe opções somente do `ConfigService` e não registra URLs ou credenciais. CORS, headers, rate limiting, autenticação e tratamento padronizado de erros estão implementados; CSRF, TOTP e passkeys continuam em issues próprias.
+Controllers recebem requisições e delegam aos services. Services concentram regras de domínio e não conhecem a interface visual. A infraestrutura PostgreSQL é criada pelo `DatabaseModule`, que recebe opções somente do `ConfigService` e não registra URLs ou credenciais. CORS, headers, rate limiting, autenticação, CSRF para as rotas de refresh/logout e tratamento padronizado de erros estão implementados; TOTP completo e passkeys continuam em issues próprias.
 
 ## Arquitetura de persistência
 
@@ -127,6 +127,8 @@ O `.env.example` serve como referência compartilhada; o `.env` contém a config
 A auditoria sanitizada de proteção e histórico está registrada em [`docs/RNF-07-AUDIT.md`](docs/RNF-07-AUDIT.md). O `.env.example` é a única exceção permitida ao padrão de ignorar arquivos de ambiente.
 
 A validação obrigatória na inicialização está documentada em [`docs/RNF-08-VALIDATION.md`](docs/RNF-08-VALIDATION.md). A allowlist CORS explícita usa `CORS_ORIGINS`; o backend rejeita `*` e origens que não sejam URLs HTTP/HTTPS completas. As respostas também incluem CSP restritiva com `default-src 'self'`, `script-src 'self'`, `object-src 'none'` e `frame-ancestors 'none'`.
+
+As rotas `POST /api/v1/auth/refresh` e `POST /api/v1/auth/logout` usam refresh token em cookie HttpOnly com `SameSite=Strict` e proteção CSRF por double submit. O login emite `csrf_token` (legível pelo frontend); o cliente deve reenviá-lo no cabeçalho `X-CSRF-Token`. O refresh gira os dois cookies. Rotas autenticadas por Bearer e a verificação pública de PDF não dependem desse cookie.
 
 A arquitetura, as opções de conexão e as evidências de integração do PostgreSQL estão documentadas em [`docs/RNF-04-DATABASE.md`](docs/RNF-04-DATABASE.md).
 

@@ -25,10 +25,10 @@ Os campos são estáveis, tipados no backend e não incluem banco de dados, ambi
 As rotas ficam sob `/api/v1/auth`:
 
 - `POST /register` (`201`): `{ name, email, password }`.
-- `POST /login` (`200`): retorna o access token; o refresh é somente cookie HttpOnly.
+- `POST /login` (`200`): retorna o access token e define o refresh em cookie HttpOnly, além do cookie `csrf_token` legível pelo frontend.
 - `GET /me` (`200`): exige Bearer token.
-- `POST /refresh` (`200`): gira o refresh cookie.
-- `POST /logout` (`204`): revoga o refresh atual.
+- `POST /refresh` (`200`): exige o refresh cookie, `csrf_token` e `X-CSRF-Token` correspondente; gira os dois cookies.
+- `POST /logout` (`204`): exige o mesmo par CSRF, revoga o refresh atual e limpa os cookies.
 
 ### Documentos
 
@@ -50,7 +50,7 @@ Uploads são validados por limite de 20 MiB, magic number `%PDF-` e rejeição d
 
 Não são criadas rotas artificiais apenas para demonstrar métodos HTTP. Atualmente, `POST /api/v1/health` não é suportado e o NestJS responde `404`.
 
-O contrato de autenticação, incluindo cookies e rotação de refresh token, está em [`docs/REQ-03-AUTHENTICATION-CORE.md`](REQ-03-AUTHENTICATION-CORE.md). Os endpoints de autenticação usam o envelope global de erros e nunca retornam senhas, hashes ou refresh tokens no corpo.
+O contrato de autenticação, incluindo cookies, `SameSite=Strict`, double-submit CSRF e rotação de refresh token, está em [`docs/REQ-03-AUTHENTICATION-CORE.md`](REQ-03-AUTHENTICATION-CORE.md). Os endpoints de autenticação usam o envelope global de erros e nunca retornam senhas, hashes ou refresh tokens no corpo.
 
 ## Status HTTP
 
@@ -77,7 +77,7 @@ As respostas HTTP incluem uma política CSP restritiva: `default-src 'self'`, `s
 
 Controllers são a camada de transporte: recebem HTTP, delegam e retornam contratos. Services concentram regras de domínio e não dependem do frontend. Módulos agrupam responsabilidades por domínio. O frontend deve consumir somente estes contratos HTTP e nunca importar módulos internos ou acessar o banco diretamente.
 
-Passkeys, TOTP completo, CSRF e recursos avançados de auditoria ainda são issues próprias. CORS, headers, persistência mínima de metadados e assinatura/verificação PDF já estão implementados.
+TOTP completo, passkeys e recursos avançados de auditoria ainda são issues próprias. CORS, headers, double-submit CSRF nas operações autenticadas por cookie, persistência mínima de metadados e assinatura/verificação PDF já estão implementados.
 
 ## Versionamento e evolução
 
@@ -90,4 +90,4 @@ Os endpoints atuais usam `/api/v1`, conforme a Issue #81 (RNF-16). A política c
 5. adicionar testes de sucesso, falha e regressão;
 6. atualizar esta documentação sem registrar funcionalidades ainda inexistentes.
 
-Novos recursos de autenticação forte, passkeys, TOTP, CSRF e auditoria devem ser adicionados nas issues próprias, sem rebaixar os contratos existentes.
+Novos recursos de autenticação forte, passkeys, TOTP e auditoria devem ser adicionados nas issues próprias, sem rebaixar os contratos existentes.
