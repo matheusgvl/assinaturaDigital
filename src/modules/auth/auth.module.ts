@@ -9,9 +9,12 @@ import { LoginRateLimitService } from './login-rate-limit.service';
 import { Session } from './entities/session.entity';
 import { User } from './entities/user.entity';
 import { AccessTokenDenylist } from './entities/access-token-denylist.entity';
+import { TotpSecret } from './entities/totp-secret.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Session, AccessTokenDenylist])],
+  imports: [
+    TypeOrmModule.forFeature([User, Session, AccessTokenDenylist, TotpSecret]),
+  ],
   controllers: [AuthController],
   providers: [
     AuthService,
