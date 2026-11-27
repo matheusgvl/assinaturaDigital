@@ -98,15 +98,19 @@ describe('PostgreSQL integration', () => {
       async () => {
         let startupError: unknown;
         let app: INestApplication | undefined;
+        let moduleFixture: TestingModule | undefined;
 
         try {
-          const moduleFixture = await compileApplication();
+          moduleFixture = await compileApplication();
           app = moduleFixture.createNestApplication();
           await app.init();
         } catch (error) {
           startupError = error;
         } finally {
           await closeApplication(app);
+          if (startupError && moduleFixture) {
+            await moduleFixture.close();
+          }
         }
 
         expect(startupError).toBeDefined();
@@ -124,15 +128,19 @@ describe('PostgreSQL integration', () => {
       async () => {
         let startupError: unknown;
         let app: INestApplication | undefined;
+        let moduleFixture: TestingModule | undefined;
 
         try {
-          const moduleFixture = await compileApplication();
+          moduleFixture = await compileApplication();
           app = moduleFixture.createNestApplication();
           await app.init();
         } catch (error) {
           startupError = error;
         } finally {
           await closeApplication(app);
+          if (startupError && moduleFixture) {
+            await moduleFixture.close();
+          }
         }
 
         expect(startupError).toBeDefined();
