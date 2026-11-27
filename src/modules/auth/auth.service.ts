@@ -104,6 +104,17 @@ export class AuthService {
     await this.users.save(user);
     await this.rateLimit.clearAccount(dto.email);
 
+    // A future TOTP transaction must complete before an access token is
+    // created. Keeping this guard here prevents a partially enabled account
+    // from bypassing the second factor.
+    if (user.totpEnabled) {
+      throw new ApiException(
+        API_ERROR_CODES.AUTHORIZATION,
+        HttpStatus.FORBIDDEN,
+        'Additional verification required',
+      );
+    }
+
     const authenticatedUser = { id: user.id, email: user.email };
     const refreshToken = randomBytes(32).toString('base64url');
     await this.sessions.save(

@@ -3,6 +3,7 @@ import {
   DEFAULT_CORS_ORIGINS,
   PORT_ENV_NAME,
   resolveCorsOrigins,
+  resolveJwtEnvironment,
   resolvePort,
 } from './app.config';
 
@@ -41,6 +42,18 @@ describe('application configuration', () => {
   it('accepts the boundary ports', () => {
     expect(resolvePort({ [PORT_ENV_NAME]: '1' })).toBe(1);
     expect(resolvePort({ [PORT_ENV_NAME]: '65535' })).toBe(65535);
+  });
+
+  it('requires Base64-encoded RSA PEM markers for JWT keys', () => {
+    expect(() => resolveJwtEnvironment({})).toThrow(
+      'JWT signing keys are not configured',
+    );
+    expect(() =>
+      resolveJwtEnvironment({
+        JWT_PRIVATE_KEY_B64: Buffer.from('not-a-key').toString('base64'),
+        JWT_PUBLIC_KEY_B64: Buffer.from('not-a-key').toString('base64'),
+      }),
+    ).toThrow('JWT signing keys are not configured');
   });
 
   it('uses an explicit local origin when CORS_ORIGINS is absent', () => {
