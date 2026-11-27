@@ -1,6 +1,9 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
   IsOptional,
   IsString,
   IsUUID,
@@ -75,6 +78,14 @@ export class TotpLoginVerificationDto {
   @IsString()
   @MaxLength(32)
   recoveryCode?: string;
+}
+
+export class MarkSecurityAlertsReadDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID('4', { each: true })
+  ids!: string[];
 }
 
 export interface AuthenticatedUser {

@@ -15,6 +15,8 @@ import { TotpRecoveryCode } from './entities/totp-recovery-code.entity';
 import { TotpRecoveryService } from './totp-recovery.service';
 import { TotpLoginTransaction } from './entities/totp-login-transaction.entity';
 import { TotpLoginService } from './totp-login.service';
+import { SecurityAlert } from './entities/security-alert.entity';
+import { TotpAlertService } from './totp-alert.service';
 
 @Module({
   imports: [
@@ -25,6 +27,7 @@ import { TotpLoginService } from './totp-login.service';
       TotpSecret,
       TotpRecoveryCode,
       TotpLoginTransaction,
+      SecurityAlert,
     ]),
   ],
   controllers: [AuthController],
@@ -37,6 +40,7 @@ import { TotpLoginService } from './totp-login.service';
     TotpEnrollmentService,
     TotpRecoveryService,
     TotpLoginService,
+    TotpAlertService,
   ],
   exports: [
     AuthService,
@@ -46,6 +50,7 @@ import { TotpLoginService } from './totp-login.service';
     TotpEnrollmentService,
     TotpRecoveryService,
     TotpLoginService,
+    TotpAlertService,
   ],
 })
 export class AuthModule {}

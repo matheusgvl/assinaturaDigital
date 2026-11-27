@@ -11,6 +11,7 @@ import { TotpLoginTransaction } from './entities/totp-login-transaction.entity';
 import { decryptTotpSecret } from './totp-crypto';
 import { verifyTotp } from './totp';
 import { TotpRecoveryService } from './totp-recovery.service';
+import { TotpAlertService } from './totp-alert.service';
 import type { TotpLoginVerificationDto } from './auth.dto';
 
 const LOGIN_TRANSACTION_TTL_MS = 5 * 60 * 1000;
@@ -37,6 +38,7 @@ export class TotpLoginService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     private readonly recovery: TotpRecoveryService,
+    private readonly alerts: TotpAlertService,
   ) {}
 
   /** Cria uma transação descartável e substitui tentativas pendentes do usuário. */
@@ -124,6 +126,15 @@ export class TotpLoginService {
           transaction.consumedAt = now;
         }
         await repository.save(transaction);
+        if (user) {
+          await this.alerts.create(
+            manager,
+            user.id,
+            'invalid_totp',
+            ip,
+            userAgent,
+          );
+        }
         return null;
       }
 

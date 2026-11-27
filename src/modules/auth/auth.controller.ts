@@ -26,8 +26,10 @@ import {
   RegisterDto,
   TotpSetupConfirmationDto,
   TotpLoginVerificationDto,
+  MarkSecurityAlertsReadDto,
 } from './auth.dto';
 import { TotpEnrollmentService } from './totp-enrollment.service';
+import { TotpAlertService } from './totp-alert.service';
 
 export const CSRF_TOKEN_COOKIE = 'csrf_token';
 
@@ -89,6 +91,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly totpEnrollment: TotpEnrollmentService,
+    private readonly alerts: TotpAlertService,
   ) {}
 
   @Post('register')
@@ -227,6 +230,22 @@ export class AuthController {
     setRefreshCookie(response, result.refreshToken);
     setCsrfCookie(response, randomBytes(32).toString('base64url'));
     return { accessToken: result.accessToken, user: result.user };
+  }
+
+  @Get('alerts')
+  @UseGuards(JwtAuthGuard)
+  alertsForUser(@Req() request: AuthenticatedRequest) {
+    return this.alerts.list(request.user.id);
+  }
+
+  @Post('alerts/read')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async markAlertsRead(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: MarkSecurityAlertsReadDto,
+  ): Promise<void> {
+    await this.alerts.markRead(request.user.id, dto);
   }
 
   @Delete('sessions/:id')
