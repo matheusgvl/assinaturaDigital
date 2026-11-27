@@ -32,7 +32,7 @@ test/migrations/fixture-data-source.ts
 
 ## Convenção e segurança
 
-Migrations devem seguir `TIMESTAMP-NomeDescritivo.ts`, implementar `MigrationInterface` e conter `up` e `down` determinísticos. Depois de aplicada em ambiente compartilhado, uma migration não deve ser editada; correções devem ser novas migrations. A sequência e a política de upgrade/downgrade serão formalizadas na Issue #76.
+Migrations devem seguir `TIMESTAMP-NomeDescritivo.ts`, implementar `MigrationInterface` e conter `up` e `down` determinísticos. Depois de aplicada em ambiente compartilhado, uma migration não deve ser editada; correções devem ser novas migrations. A sequência e a política de upgrade/downgrade estão formalizadas em [`RNF-11-MIGRATION-IDENTIFIERS.md`](RNF-11-MIGRATION-IDENTIFIERS.md).
 
 As opções abaixo são obrigatoriamente desativadas tanto na aplicação quanto no DataSource:
 
@@ -106,4 +106,4 @@ O Jest padrão também emitiu o aviso transitório de handles observado nas suí
 
 `npm audit --omit=dev` mantém as 3 vulnerabilidades moderadas transitivas já registradas em `glob`/`minimatch` via TypeORM 0.3.x. `npm audit fix --force` não foi executado.
 
-A Issue #75 deve formalizar controles contra alterações manuais. A Issue #76 deve formalizar sequência, upgrade/downgrade e recuperação. A Issue #69 permanece relacionada e não é encerrada automaticamente por este trabalho.
+Os controles contra alterações manuais estão formalizados em [`RNF-10-MIGRATION-DISCIPLINE.md`](RNF-10-MIGRATION-DISCIPLINE.md), e a convenção de sequência, upgrade/downgrade e rollback está em [`RNF-11-MIGRATION-IDENTIFIERS.md`](RNF-11-MIGRATION-IDENTIFIERS.md). A Issue #69 permanece relacionada e não é encerrada automaticamente porque o schema de negócio ainda não foi definido.
