@@ -33,6 +33,8 @@ Os campos são estáveis, tipados no backend e não incluem banco de dados, ambi
 
 Não são criadas rotas artificiais apenas para demonstrar métodos HTTP. Atualmente, `POST /api/v1/health` não é suportado e o NestJS responde `404`.
 
+O contrato de autenticação, incluindo cookies e rotação de refresh token, está em [`docs/REQ-03-AUTHENTICATION-CORE.md`](REQ-03-AUTHENTICATION-CORE.md). Os endpoints de autenticação usam o envelope global de erros e nunca retornam senhas, hashes ou refresh tokens no corpo.
+
 ## Status HTTP
 
 As respostas devem usar semanticamente `200 OK`, `201 Created` e `204 No Content` para sucesso, e `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `413 Payload Too Large`, `422 Unprocessable Entity`, `429 Too Many Requests` e `500 Internal Server Error` conforme o caso.
@@ -57,6 +59,8 @@ As respostas HTTP incluem uma política CSP restritiva: `default-src 'self'`, `s
 ## Organização
 
 Controllers são a camada de transporte: recebem HTTP, delegam e retornam contratos. Services concentram regras de domínio e não dependem do frontend. Módulos agrupam responsabilidades por domínio. O frontend deve consumir somente estes contratos HTTP e nunca importar módulos internos ou acessar o banco diretamente.
+
+Passkeys, TOTP, persistência de documentos e assinatura PDF ainda serão definidos nas issues próprias. CORS, headers e tratamento global de erros já estão implementados.
 
 ## Versionamento e evolução
 

@@ -13,6 +13,10 @@ export const DATABASE_MIGRATIONS_GLOB = join(
   __dirname,
   'migrations/*{.js,.ts}',
 );
+export const DATABASE_ENTITIES_GLOB = join(
+  __dirname,
+  '../modules/**/entities/*{.js,.ts}',
+);
 
 function createDatabaseConnectionOptions(
   databaseUrl: string,
@@ -24,6 +28,7 @@ function createDatabaseConnectionOptions(
     url: databaseUrl,
     ssl: databaseSsl ? { rejectUnauthorized: true } : false,
     migrations: [migrationsGlob],
+    entities: [DATABASE_ENTITIES_GLOB],
     migrationsTableName: DATABASE_MIGRATIONS_TABLE_NAME,
     synchronize: false,
     migrationsRun: false,

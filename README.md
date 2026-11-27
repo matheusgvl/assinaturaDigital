@@ -140,6 +140,8 @@ A política de senhas do domínio está em [`docs/REQ-01-PASSWORD-POLICY.md`](do
 
 O armazenamento de credenciais com Argon2id está em [`docs/REQ-02-ARGON2ID.md`](docs/REQ-02-ARGON2ID.md).
 
+O contrato de cadastro, login, sessões, refresh rotacionado e logout está em [`docs/REQ-03-AUTHENTICATION-CORE.md`](docs/REQ-03-AUTHENTICATION-CORE.md).
+
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
 
 ## Processo de desenvolvimento
