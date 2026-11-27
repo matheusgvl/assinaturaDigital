@@ -1,8 +1,12 @@
 import { registerAs } from '@nestjs/config';
+import {
+  DatabaseEnvironment,
+  validateDatabaseEnvironment,
+} from './database.config';
 
 export const PORT_ENV_NAME = 'PORT';
 
-export interface ValidatedEnvironment {
+export interface ValidatedEnvironment extends DatabaseEnvironment {
   PORT: number;
 }
 
@@ -24,7 +28,10 @@ export function resolvePort(environment: Record<string, unknown>): number {
 export function validateEnvironment(
   environment: Record<string, unknown>,
 ): ValidatedEnvironment {
-  return { PORT: resolvePort(environment) };
+  return {
+    PORT: resolvePort(environment),
+    ...validateDatabaseEnvironment(environment),
+  };
 }
 
 export default registerAs('app', () => ({
