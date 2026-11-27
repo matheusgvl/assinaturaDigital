@@ -17,6 +17,7 @@ interface ApiErrorResponse {
   message: string;
   timestamp: string;
   path: string;
+  details?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -36,6 +37,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       path: request.url,
     };
+
+    if (exception instanceof ApiException && exception.details) {
+      body.details = exception.details;
+    }
 
     response.status(status).json(body);
   }
