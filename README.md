@@ -150,6 +150,42 @@ O fluxo de assinatura criptográfica e a política de armazenamento das chaves e
 
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
 
+## Segurança de sessão validada na etapa pós-apresentação
+
+O refresh token é opaco, gerado com 256 bits por CSPRNG, persistido somente
+como hash e válido por sete dias. Ele nunca é devolvido no JSON: permanece no
+cookie `HttpOnly`, `SameSite=Strict` e `Secure` em produção. O `csrf_token` é
+usado pelo frontend no cabeçalho `X-CSRF-Token` para refresh e logout.
+
+Os access tokens incluem `jti`, `iat`, `exp`, `session_id`, `ip_hash` e
+`ua_hash`. O guard consulta a sessão e a denylist em cada rota protegida.
+Logout, revogação de sessão, revogação global e troca de senha invalidam o
+acesso correspondente. Alteração de User-Agent rejeita o token; alteração de
+IP gera alerta sem bloqueio automático. A rotação do refresh é transacional e
+reuso de um token consumido revoga a família inteira.
+
+A troca de senha disponível no frontend é `POST /api/v1/auth/password` e exige
+o access token atual, `currentPassword` e `newPassword`. Após a operação, o
+usuário deve autenticar novamente porque as sessões anteriores são revogadas.
+
+Para homologar a atualização sem usar o banco da demonstração, configure um
+PostgreSQL separado e execute as migrations explicitamente:
+
+```powershell
+$env:DATABASE_URL = 'postgresql://assinatura_test:assinatura_test@localhost:55432/assinatura_test'
+$env:DATABASE_SSL = 'false'
+npm ci
+npm run migration:show
+npm run migration:run
+npm run start:dev
+```
+
+Os testes E2E devem manter essas variáveis apontando para o banco de testes.
+Nunca use `TRUNCATE`, `migration:revert` ou testes automatizados no banco da
+demonstração. Consulte [`docs/AUDITORIA_POS_APRESENTACAO.md`](docs/AUDITORIA_POS_APRESENTACAO.md)
+e [`docs/RELATORIO_ETAPA_POS_APRESENTACAO_01.md`](docs/RELATORIO_ETAPA_POS_APRESENTACAO_01.md)
+para as evidências e limitações reais.
+
 ## Processo de desenvolvimento
 
 Cada requisito deve ser trabalhado em sua própria branch e issue, com commits terminados em `Ref #ID`, revisão por Pull Request e merge posterior na `main`. O backend e o frontend permanecem em repositórios independentes.
