@@ -9,7 +9,7 @@ export interface ValidatedEnvironment {
 export function resolvePort(environment: Record<string, unknown>): number {
   const configuredPort = environment[PORT_ENV_NAME];
 
-  if (typeof configuredPort !== 'string' || !configuredPort.trim()) {
+  if (typeof configuredPort !== 'string' || !/^[0-9]+$/.test(configuredPort)) {
     throw new Error('PORT is required and must be an integer between 1 and 65535');
   }
 
