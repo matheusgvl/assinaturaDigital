@@ -1,4 +1,10 @@
-import { PORT_ENV_NAME, resolvePort } from './app.config';
+import {
+  CORS_ORIGINS_ENV_NAME,
+  DEFAULT_CORS_ORIGINS,
+  PORT_ENV_NAME,
+  resolveCorsOrigins,
+  resolvePort,
+} from './app.config';
 
 describe('application configuration', () => {
   it('uses the configured port from the environment', () => {
@@ -36,4 +42,26 @@ describe('application configuration', () => {
     expect(resolvePort({ [PORT_ENV_NAME]: '1' })).toBe(1);
     expect(resolvePort({ [PORT_ENV_NAME]: '65535' })).toBe(65535);
   });
+
+  it('uses an explicit local origin when CORS_ORIGINS is absent', () => {
+    expect(resolveCorsOrigins({})).toEqual([...DEFAULT_CORS_ORIGINS]);
+  });
+
+  it('accepts a comma-separated explicit origin allowlist', () => {
+    expect(
+      resolveCorsOrigins({
+        [CORS_ORIGINS_ENV_NAME]:
+          'https://app.example.com, http://localhost:5173',
+      }),
+    ).toEqual(['https://app.example.com', 'http://localhost:5173']);
+  });
+
+  it.each(['*', 'javascript:alert(1)', 'https://app.example.com/path', ''])(
+    'rejects unsafe CORS origin configuration %s',
+    (value) => {
+      expect(() =>
+        resolveCorsOrigins({ [CORS_ORIGINS_ENV_NAME]: value }),
+      ).toThrow('CORS_ORIGINS must contain only explicit http or https origins');
+    },
+  );
 });
