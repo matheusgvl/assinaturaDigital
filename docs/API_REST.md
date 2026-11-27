@@ -58,7 +58,7 @@ Controllers são a camada de transporte: recebem HTTP, delegam e retornam contra
 
 ## Versionamento e evolução
 
-O endpoint atual permanece em `/health`. O prefixo `/api/v1` será adotado somente na Issue #81 (RNF-16). Novos endpoints devem:
+O endpoint atual permanece em `/health` até a aplicação do prefixo versionado da Issue #81 (RNF-16). A política completa está em [`docs/RNF-17-API-VERSIONING.md`](RNF-17-API-VERSIONING.md). Novos endpoints devem:
 
 1. representar um recurso ou operação de domínio real;
 2. declarar método, entrada, saída e status HTTP;
