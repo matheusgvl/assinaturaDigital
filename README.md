@@ -79,7 +79,7 @@ test/
 └── migrations.e2e-spec.ts    # criação e histórico da fixture PostgreSQL
 ```
 
-Controllers recebem requisições e delegam aos services. Services concentram regras de domínio e não conhecem a interface visual. A infraestrutura PostgreSQL é criada pelo `DatabaseModule`, que recebe opções somente do `ConfigService` e não registra URLs ou credenciais. CORS, headers, rate limiting, CSRF, autenticação e tratamento padronizado de erros serão tratados nas issues próprias.
+Controllers recebem requisições e delegam aos services. Services concentram regras de domínio e não conhecem a interface visual. A infraestrutura PostgreSQL é criada pelo `DatabaseModule`, que recebe opções somente do `ConfigService` e não registra URLs ou credenciais. CORS, headers, rate limiting, autenticação e tratamento padronizado de erros estão implementados; CSRF, TOTP e passkeys continuam em issues próprias.
 
 ## Arquitetura de persistência
 
@@ -94,7 +94,7 @@ flowchart TB
   I --> DB[(PostgreSQL — RNF-04)]
 ```
 
-O RNF-04 implementa a conexão de infraestrutura com PostgreSQL usando `@nestjs/typeorm`, TypeORM e `pg`. O RNF-09 adiciona o `DataSource` compartilhado e o mecanismo de migrations versionadas. PDFs não são armazenados no banco nesta etapa. Ainda não há entidades ou migrations de negócio; a fixture de homologação fica fora do caminho de produção para não inventar tabelas.
+O RNF-04 implementa a conexão de infraestrutura com PostgreSQL usando `@nestjs/typeorm`, TypeORM e `pg`. O RNF-09 adiciona o `DataSource` compartilhado e o mecanismo de migrations versionadas. A autenticação, as chaves de assinatura cifradas e os metadados das assinaturas são persistidos no banco; os bytes dos PDFs permanecem somente em memória durante o processamento.
 
 ## Migrations versionadas
 
@@ -102,15 +102,15 @@ O fluxo de migrations, a fixture de homologação, os comandos da CLI e as evid�
 
 ## Contratos REST
 
-HTTP conventions, expected statuses, and the detailed health-check contract are documented in [`docs/API_REST.md`](docs/API_REST.md). The current endpoint is intentionally small; no fictitious user, document, or authentication endpoints are exposed.
+HTTP conventions, expected statuses, and the detailed contracts are documented in [`docs/API_REST.md`](docs/API_REST.md). O backend expõe health check, autenticação, assinatura autenticada e verificação pública de PDFs.
 
 ## Configuração por ambiente
 
-The current environment configuration is documented in [`docs/RNF-05-CONFIG.md`](docs/RNF-05-CONFIG.md). `PORT` and `DATABASE_URL` are required at startup; `PORT` must be an integer between `1` and `65535`, and `DATABASE_URL` must be a PostgreSQL URL. `DATABASE_SSL` accepts only `true` or `false` and defaults to `false` for local development.
+The current environment configuration is documented in [`docs/RNF-05-CONFIG.md`](docs/RNF-05-CONFIG.md). `PORT`, `DATABASE_URL`, RSA JWT keys and `PDF_MASTER_KEY_B64` are required at startup; `PORT` must be an integer between `1` and `65535`, and `DATABASE_URL` must be a PostgreSQL URL. `DATABASE_SSL` accepts only `true` or `false` and defaults to `false` for local development.
 
 ## Arquivo `.env.example`
 
-O arquivo versionado [`.env.example`](.env.example) documenta `PORT`, `DATABASE_URL` e `DATABASE_SSL`, sem credenciais reais. Para configurar uma cópia local somente quando ainda não existir um `.env`:
+O arquivo versionado [`.env.example`](.env.example) documenta todas as variáveis sem credenciais reais, incluindo as chaves JWT e a chave mestra de cifragem das chaves de assinatura. Para configurar uma cópia local somente quando ainda não existir um `.env`:
 
 ```bash
 test -f .env || cp .env.example .env
@@ -141,6 +141,8 @@ A política de senhas do domínio está em [`docs/REQ-01-PASSWORD-POLICY.md`](do
 O armazenamento de credenciais com Argon2id está em [`docs/REQ-02-ARGON2ID.md`](docs/REQ-02-ARGON2ID.md).
 
 O contrato de cadastro, login, sessões, refresh rotacionado e logout está em [`docs/REQ-03-AUTHENTICATION-CORE.md`](docs/REQ-03-AUTHENTICATION-CORE.md).
+
+O fluxo de assinatura criptográfica e a política de armazenamento das chaves estão em [`docs/REQ-46-PDF-SIGNATURE.md`](docs/REQ-46-PDF-SIGNATURE.md). A verificação pública do CMS embutido está em [`docs/REQ-50-PDF-VERIFICATION.md`](docs/REQ-50-PDF-VERIFICATION.md).
 
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
 

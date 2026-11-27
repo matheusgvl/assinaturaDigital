@@ -152,6 +152,30 @@ describe('authentication flow (integration)', () => {
       .expect(401);
   });
 
+  it('does not issue an access token when a second factor is enabled', async () => {
+    const email = `totp-guard-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    const register = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'TOTP Guard', email, password })
+      .expect(201);
+    await app.get(DataSource).query(
+      'UPDATE "users" SET "totp_enabled" = true WHERE "id" = $1',
+      [register.body.id],
+    );
+
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(403);
+    expect(login.body).toMatchObject({
+      code: 'AUTH_002',
+      message: 'Additional verification required',
+    });
+    expect(login.body.accessToken).toBeUndefined();
+    expect(login.headers['set-cookie']).toBeUndefined();
+  });
+
   it('limits login attempts independently by IP', async () => {
     await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
     for (let attempt = 0; attempt < 30; attempt += 1) {

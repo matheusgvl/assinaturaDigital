@@ -20,6 +20,6 @@
     "useUnknownInCatchVariables": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
-    "types": ["node", "jest"]
+    "types": ["node", "jest", "multer"]
   }
 }

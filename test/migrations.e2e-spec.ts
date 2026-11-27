@@ -52,6 +52,16 @@ describe('PostgreSQL migrations integration', () => {
   beforeAll(async () => {
     dataSource = fixtureDataSource();
     await dataSource.initialize();
+    await dataSource.query(`DROP TABLE IF EXISTS "${fixtureTableName}" CASCADE`);
+    const bookkeeping = await dataSource.query(
+      `SELECT to_regclass('public.typeorm_migrations') AS table_name`,
+    );
+    if (bookkeeping[0]?.table_name) {
+      await dataSource.query(
+        'DELETE FROM "typeorm_migrations" WHERE "name" = $1',
+        [fixtureMigrationName],
+      );
+    }
   });
 
   afterAll(async () => {
@@ -70,7 +80,9 @@ describe('PostgreSQL migrations integration', () => {
       `,
     );
 
-    expect(tables).toEqual([]);
+    // Other integration suites may already have created the shared TypeORM
+    // bookkeeping table. The fixture schema itself must still be absent.
+    expect(tables.filter(({ table_name }: { table_name: string }) => table_name === fixtureTableName)).toEqual([]);
     expect(dataSource.options.synchronize).toBe(false);
     expect(dataSource.options.migrationsRun).toBe(false);
     expect(dataSource.options.dropSchema).toBe(false);

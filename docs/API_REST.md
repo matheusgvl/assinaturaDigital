@@ -2,7 +2,7 @@
 
 ## Escopo atual
 
-O backend usa NestJS como API HTTP independente do frontend. O único recurso disponível nesta etapa é o health check:
+O backend usa NestJS como API HTTP independente do frontend. Além do health check, o contrato atual inclui autenticação e operações reais de assinatura/verificação:
 
 ```http
 GET /api/v1/health
@@ -20,6 +20,23 @@ Resposta `200 OK` (`application/json`):
 
 Os campos são estáveis, tipados no backend e não incluem banco de dados, ambiente, credenciais ou segredos.
 
+### Autenticação
+
+As rotas ficam sob `/api/v1/auth`:
+
+- `POST /register` (`201`): `{ name, email, password }`.
+- `POST /login` (`200`): retorna o access token; o refresh é somente cookie HttpOnly.
+- `GET /me` (`200`): exige Bearer token.
+- `POST /refresh` (`200`): gira o refresh cookie.
+- `POST /logout` (`204`): revoga o refresh atual.
+
+### Documentos
+
+- `POST /api/v1/documents/sign` (`200`): exige Bearer token e recebe multipart `file`, `page`, `x` e `y`; retorna somente o PDF assinado.
+- `POST /api/v1/documents/verify` (`201`): recebe multipart `file` sem autenticação e retorna `valid`, `tampered` ou `not_found`.
+
+Uploads são validados por limite de 20 MiB, magic number `%PDF-` e rejeição de ações JavaScript/AA. Os bytes não são persistidos; somente hash, identidade da assinatura e material de chave cifrado permanecem no PostgreSQL.
+
 ## Convenções REST
 
 - `GET` consulta recursos.
@@ -29,7 +46,7 @@ Os campos são estáveis, tipados no backend e não incluem banco de dados, ambi
 - `DELETE` remove ou revoga um recurso.
 - Rotas usam substantivos claros e parâmetros de rota para identificar recursos.
 - Query parameters ficam reservados para filtros e paginação.
-- JSON é o formato padrão; `multipart/form-data` será usado apenas quando o upload de PDF for implementado.
+- JSON é o formato padrão; os endpoints de documento usam `multipart/form-data`.
 
 Não são criadas rotas artificiais apenas para demonstrar métodos HTTP. Atualmente, `POST /api/v1/health` não é suportado e o NestJS responde `404`.
 
@@ -60,11 +77,11 @@ As respostas HTTP incluem uma política CSP restritiva: `default-src 'self'`, `s
 
 Controllers são a camada de transporte: recebem HTTP, delegam e retornam contratos. Services concentram regras de domínio e não dependem do frontend. Módulos agrupam responsabilidades por domínio. O frontend deve consumir somente estes contratos HTTP e nunca importar módulos internos ou acessar o banco diretamente.
 
-Passkeys, TOTP, persistência de documentos e assinatura PDF ainda serão definidos nas issues próprias. CORS, headers e tratamento global de erros já estão implementados.
+Passkeys, TOTP completo, CSRF e recursos avançados de auditoria ainda são issues próprias. CORS, headers, persistência mínima de metadados e assinatura/verificação PDF já estão implementados.
 
 ## Versionamento e evolução
 
-O endpoint atual é `/api/v1/health`, conforme a Issue #81 (RNF-16). A política completa está em [`docs/RNF-17-API-VERSIONING.md`](RNF-17-API-VERSIONING.md). Novos endpoints devem:
+Os endpoints atuais usam `/api/v1`, conforme a Issue #81 (RNF-16). A política completa está em [`docs/RNF-17-API-VERSIONING.md`](RNF-17-API-VERSIONING.md). Novos endpoints devem:
 
 1. representar um recurso ou operação de domínio real;
 2. declarar método, entrada, saída e status HTTP;
@@ -73,4 +90,4 @@ O endpoint atual é `/api/v1/health`, conforme a Issue #81 (RNF-16). A política
 5. adicionar testes de sucesso, falha e regressão;
 6. atualizar esta documentação sem registrar funcionalidades ainda inexistentes.
 
-Autenticação, usuários, passkeys, TOTP, persistência, PDFs, CORS, headers adicionais e tratamento global de erros serão definidos nas issues próprias.
+Novos recursos de autenticação forte, passkeys, TOTP, CSRF e auditoria devem ser adicionados nas issues próprias, sem rebaixar os contratos existentes.

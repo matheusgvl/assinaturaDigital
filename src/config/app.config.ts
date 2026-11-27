@@ -6,6 +6,9 @@ import {
 
 export const PORT_ENV_NAME = 'PORT';
 export const CORS_ORIGINS_ENV_NAME = 'CORS_ORIGINS';
+export const PDF_MASTER_KEY_ENV_NAME = 'PDF_MASTER_KEY_B64';
+export const JWT_PRIVATE_KEY_ENV_NAME = 'JWT_PRIVATE_KEY_B64';
+export const JWT_PUBLIC_KEY_ENV_NAME = 'JWT_PUBLIC_KEY_B64';
 export const DEFAULT_CORS_ORIGINS = ['http://localhost:5173'] as const;
 const corsOriginsError =
   'CORS_ORIGINS must contain only explicit http or https origins';
@@ -13,6 +16,69 @@ const corsOriginsError =
 export interface ValidatedEnvironment extends DatabaseEnvironment {
   PORT: number;
   CORS_ORIGINS: string;
+}
+
+export function resolvePdfMasterKey(environment: Record<string, unknown>): string {
+  const configuredKey = environment[PDF_MASTER_KEY_ENV_NAME];
+  if (
+    typeof configuredKey !== 'string' ||
+    !configuredKey ||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(configuredKey)
+  ) {
+    throw new Error('PDF_MASTER_KEY_B64 must be a Base64-encoded 32-byte key');
+  }
+
+  let decoded: Buffer;
+  try {
+    decoded = Buffer.from(configuredKey, 'base64');
+  } catch {
+    throw new Error('PDF_MASTER_KEY_B64 must be a Base64-encoded 32-byte key');
+  }
+
+  if (decoded.length !== 32 || decoded.toString('base64') !== configuredKey) {
+    throw new Error('PDF_MASTER_KEY_B64 must be a Base64-encoded 32-byte key');
+  }
+
+  return configuredKey;
+}
+
+function resolveJwtKey(
+  environment: Record<string, unknown>,
+  environmentName: string,
+  pemMarker: string,
+): string {
+  const configuredKey = environment[environmentName];
+  if (typeof configuredKey !== 'string' || !configuredKey || !/^[A-Za-z0-9+/]+={0,2}$/.test(configuredKey)) {
+    throw new Error('JWT signing keys are not configured');
+  }
+
+  const decoded = Buffer.from(configuredKey, 'base64').toString('utf8');
+  if (
+    !decoded.includes(pemMarker) ||
+    Buffer.from(decoded, 'utf8').toString('base64') !== configuredKey
+  ) {
+    throw new Error('JWT signing keys are not configured');
+  }
+
+  return configuredKey;
+}
+
+export function resolveJwtEnvironment(environment: Record<string, unknown>): {
+  JWT_PRIVATE_KEY_B64: string;
+  JWT_PUBLIC_KEY_B64: string;
+} {
+  return {
+    JWT_PRIVATE_KEY_B64: resolveJwtKey(
+      environment,
+      JWT_PRIVATE_KEY_ENV_NAME,
+      '-----BEGIN PRIVATE KEY-----',
+    ),
+    JWT_PUBLIC_KEY_B64: resolveJwtKey(
+      environment,
+      JWT_PUBLIC_KEY_ENV_NAME,
+      '-----BEGIN PUBLIC KEY-----',
+    ),
+  };
 }
 
 export function resolvePort(environment: Record<string, unknown>): number {
@@ -81,4 +147,6 @@ export function validateEnvironment(
 export default registerAs('app', () => ({
   port: validateEnvironment(process.env).PORT,
   corsOrigins: resolveCorsOrigins(process.env),
+  pdfMasterKeyB64: resolvePdfMasterKey(process.env),
+  ...resolveJwtEnvironment(process.env),
 }));
