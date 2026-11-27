@@ -2,9 +2,9 @@
 
 ## Escopo
 
-O backend usa PostgreSQL como banco relacional de infraestrutura. A integração desta issue prepara a conexão para as funcionalidades de domínio, sem armazenar PDFs no banco e sem criar entidades ou migrations antecipadamente.
+O backend usa PostgreSQL como banco relacional de infraestrutura e domínio. A aplicação persiste usuários, sessões, limites de login, chaves de assinatura cifradas e metadados das assinaturas; os bytes dos PDFs não são armazenados.
 
-O status do RNF-04 é **parcial quanto ao domínio nesta branch**: a infraestrutura, o `DataSource` compartilhado e o mecanismo de migrations estão implementados, mas não há modelo relacional de negócio justificável neste escopo. A fixture do RNF-09 fica fora do caminho de produção e serve somente à homologação automatizada. Não há execução automática de migrations no startup.
+O status do RNF-04 é **implementado para o fluxo atual**: a infraestrutura, o `DataSource` compartilhado e as migrations de autenticação/documentos estão implementados. A fixture do RNF-09 fica fora do caminho de produção e serve somente à homologação automatizada. Não há execução automática de migrations no startup.
 
 ## Arquitetura
 
@@ -60,7 +60,7 @@ Nenhuma senha, URL ou configuração completa é escrita em logs pela integraç�
 
 ## Dados e migrations
 
-PDFs não são armazenados no PostgreSQL. A aplicação não cria tabelas por sincronização e não executa migrations no startup. O diretório `src/database/migrations` está preparado para migrations de produção, mas permanece sem tabelas de negócio até que o modelo seja definido. A fixture `test/migrations/fixtures/1795789271721-Rnf09SchemaFixture.ts` cria somente `rnf09_migration_fixture` em ambiente de homologação.
+PDFs não são armazenados no PostgreSQL. A aplicação não cria tabelas por sincronização e não executa migrations no startup. O diretório `src/database/migrations` contém as migrations de produção de autenticação, rate limiting e assinatura de documentos. A fixture `test/migrations/fixtures/1795789271721-Rnf09SchemaFixture.ts` cria somente `rnf09_migration_fixture` em ambiente de homologação.
 
 O mecanismo real, histórico, segunda execução e reversão da fixture estão documentados em [`RNF-09-MIGRATIONS.md`](RNF-09-MIGRATIONS.md). As Issues #75 e #76 devem formalizar, respectivamente, a proibição operacional de mudanças manuais e a política completa de sequência/upgrade/downgrade.
 

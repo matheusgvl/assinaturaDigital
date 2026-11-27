@@ -2,11 +2,11 @@
 
 ## Resultado e limite de escopo
 
-O mecanismo de migrations versionadas está implementado e foi homologado contra PostgreSQL 16 real em banco vazio. O schema de negócio ainda não foi criado: não há entidades permanentes justificáveis neste escopo e não foram inventadas tabelas de usuários, documentos, assinaturas ou auditoria.
+O mecanismo de migrations versionadas está implementado e foi homologado contra PostgreSQL 16 real. O schema atual contém usuários, sessões, limites de login, chaves de assinatura cifradas e metadados de assinaturas; os bytes dos PDFs continuam fora do banco.
 
 Para testar o mecanismo sem transformar uma tabela artificial em schema de produção, a homologação usa a fixture `test/migrations/fixtures/1795789271721-Rnf09SchemaFixture.ts`. Ela cria somente `rnf09_migration_fixture`, com colunas técnicas `id`, `marker` e `created_at`, e está fora de `src/database/migrations`.
 
-Classificação: **PASS para o mecanismo RNF-09; PARTIAL para o RNF-04 quanto ao schema de negócio**.
+Classificação: **PASS para o mecanismo RNF-09 e para o schema necessário ao fluxo atual do RNF-04**.
 
 ## Arquitetura
 
