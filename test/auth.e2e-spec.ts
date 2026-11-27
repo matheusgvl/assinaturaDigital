@@ -51,7 +51,11 @@ describe('authentication flow (integration)', () => {
     app = moduleFixture.createNestApplication();
     configureApp(app, ['http://localhost:5173']);
     await app.init();
-    await app.get(DataSource).runMigrations();
+    const dataSource = app.get(DataSource);
+    await dataSource.runMigrations();
+    await dataSource.query(
+      'TRUNCATE TABLE "auth_rate_limits", "sessions", "users" CASCADE',
+    );
   });
 
   afterAll(async () => {
@@ -146,5 +150,27 @@ describe('authentication flow (integration)', () => {
       .post('/api/v1/auth/login')
       .send({ email, password })
       .expect(401);
+  });
+
+  it('limits login attempts independently by IP', async () => {
+    await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          email: `unknown-${Date.now()}-${attempt}@example.com`,
+          password: 'Wrong-password9',
+        })
+        .expect(401);
+    }
+
+    const limited = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: `unknown-final-${Date.now()}@example.com`, password: 'Wrong-password9' })
+      .expect(429);
+    expect(limited.body).toMatchObject({
+      code: 'API_001',
+      message: 'Too many login attempts',
+    });
   });
 });

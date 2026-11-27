@@ -8,6 +8,7 @@ import { hashPassword, verifyPassword } from './password-hasher';
 import { validatePasswordPolicy } from './password-policy';
 import { LoginDto, RegisterDto, type AuthenticatedUser } from './auth.dto';
 import { AuthTokenService } from './auth-token.service';
+import { LoginRateLimitService } from './login-rate-limit.service';
 import { Session } from './entities/session.entity';
 import { User } from './entities/user.entity';
 
@@ -39,6 +40,7 @@ export class AuthService {
     @InjectRepository(Session)
     private readonly sessions: Repository<Session>,
     private readonly tokens: AuthTokenService,
+    private readonly rateLimit: LoginRateLimitService,
   ) {}
 
   async register(dto: RegisterDto): Promise<Pick<User, 'id' | 'name' | 'email'>> {
@@ -77,7 +79,9 @@ export class AuthService {
   async login(
     dto: LoginDto,
     userAgent: string | undefined,
+    ip: string,
   ): Promise<{ accessToken: string; refreshToken: string; user: AuthenticatedUser }> {
+    await this.rateLimit.assertAllowed(dto.email, ip);
     const user = await this.users.findOne({ where: { email: dto.email } });
     const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
     const passwordMatches = await verifyPassword(dto.password, passwordHash);
@@ -91,12 +95,14 @@ export class AuthService {
         }
         await this.users.save(user);
       }
+      await this.rateLimit.recordFailure(dto.email, ip);
       throw authError();
     }
 
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
     await this.users.save(user);
+    await this.rateLimit.clearAccount(dto.email);
 
     const authenticatedUser = { id: user.id, email: user.email };
     const refreshToken = randomBytes(32).toString('base64url');
