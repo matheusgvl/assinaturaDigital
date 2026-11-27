@@ -138,6 +138,8 @@ A convenção de timestamps, operações `up`/`down` e evidências de rollback e
 
 A política de senhas do domínio está em [`docs/REQ-01-PASSWORD-POLICY.md`](docs/REQ-01-PASSWORD-POLICY.md).
 
+O armazenamento de credenciais com Argon2id está em [`docs/REQ-02-ARGON2ID.md`](docs/REQ-02-ARGON2ID.md).
+
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
 
 ## Processo de desenvolvimento
