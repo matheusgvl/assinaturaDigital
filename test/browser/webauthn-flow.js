@@ -3,7 +3,7 @@ async (page) => {
   const pdf = 'test/fixtures/browser-sample.pdf';
   const output = 'output/playwright/webauthn-signed.pdf';
   const email = `passkey-${Date.now()}@example.test`;
-  const password = `Test-only-WeB9!${Date.now()}`;
+  const password = [crypto.randomUUID(), 'aA0!'].join('-');
   const steps = [];
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('WebAuthn.enable');
