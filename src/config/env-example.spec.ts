@@ -27,6 +27,8 @@ describe('.env.example', () => {
       'PORT=3000',
       'DATABASE_SSL=false',
       'CORS_ORIGINS=http://localhost:5173',
+      'WEBAUTHN_RP_ID=localhost',
+      'WEBAUTHN_ORIGINS=http://localhost:5173',
     ]);
     expect(content).not.toMatch(
       /^(JWT_PRIVATE_KEY|JWT_PUBLIC_KEY|PASSWORD|TOKEN|PRIVATE_KEY)=.+$/m,

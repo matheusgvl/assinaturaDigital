@@ -1,4 +1,5 @@
 import { registerAs } from '@nestjs/config';
+import { resolveWebAuthnConfig } from './webauthn.config';
 import {
   DatabaseEnvironment,
   validateDatabaseEnvironment,
@@ -147,6 +148,7 @@ export function validateEnvironment(
 export default registerAs('app', () => ({
   port: validateEnvironment(process.env).PORT,
   corsOrigins: resolveCorsOrigins(process.env),
+  webAuthn: resolveWebAuthnConfig(process.env),
   pdfMasterKeyB64: resolvePdfMasterKey(process.env),
   ...resolveJwtEnvironment(process.env),
 }));
