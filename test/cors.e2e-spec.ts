@@ -44,4 +44,25 @@ describe('CORS allowlist (integration)', () => {
 
     expect(response.headers['access-control-allow-origin']).not.toBe('*');
   });
+
+  it('answers preflight with the explicit methods, headers and cache duration', async () => {
+    const response = await request(app.getHttpServer())
+      .options('/api/v1/health')
+      .set('Origin', 'https://frontend.example.com')
+      .set('Access-Control-Request-Method', 'PUT')
+      .set(
+        'Access-Control-Request-Headers',
+        'Authorization, Content-Type, X-Request-ID, X-CSRF-Token',
+      )
+      .expect(204);
+
+    expect(response.headers['access-control-allow-methods']).toBe(
+      'GET,POST,PUT,DELETE,OPTIONS',
+    );
+    expect(response.headers['access-control-allow-headers']).toBe(
+      'Authorization,Content-Type,X-Request-ID,X-CSRF-Token',
+    );
+    expect(response.headers['access-control-max-age']).toBe('600');
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
+  });
 });
