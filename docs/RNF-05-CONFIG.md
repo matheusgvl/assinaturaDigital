@@ -6,7 +6,7 @@ O backend usa `@nestjs/config` no módulo principal. A biblioteca lê variáveis
 
 | Variável | Uso | Fallback local |
 |---|---|---|
-| `PORT` | Porta HTTP da API | `3000` |
+| `PORT` | Porta HTTP da API; obrigatória entre `1` e `65535` | sem fallback |
 
 Exemplo de execução local sem gravar valores no código:
 
@@ -29,15 +29,15 @@ O `.gitignore` já exclui `.env` e `.env.*`, preservando a exceção existente p
 - `PORT` é a única configuração atualmente necessária.
 - A configuração não é registrada em logs nem enviada em respostas HTTP.
 - O health check continua retornando somente seu contrato público.
-- Valores ausentes ou inválidos de `PORT` usam o fallback local; a validação obrigatória de ambiente pertence à Issue #73.
+- Valores ausentes ou inválidos de `PORT` fazem a aplicação recusar a inicialização; a validação obrigatória foi implementada na Issue #73.
 
 ## Pendências relacionadas
 
 - RNF-06 / Issue #71: arquivo `.env.example` documentado e versionável nesta branch.
 - Issue #72: proteção formal do `.env` no repositório e histórico.
-- Issue #73: validação obrigatória das variáveis na inicialização.
+- Issue #73: validação obrigatória das variáveis na inicialização, implementada nesta branch de RNF-08.
 - Issue #69: PostgreSQL e configurações de banco.
 
-O RNF-06 foi implementado nesta branch com o arquivo `.env.example`. A auditoria formal de arquivos `.env` e do histórico pertence à Issue #72, e a validação obrigatória na inicialização pertence à Issue #73.
+O RNF-06 foi implementado com o arquivo `.env.example`. A auditoria formal de arquivos `.env` e do histórico pertence à Issue #72; a validação obrigatória na inicialização está documentada em `docs/RNF-08-VALIDATION.md`.
 
 Sempre que uma nova funcionalidade introduzir uma variável de ambiente, sua branch deve atualizar `.env.example` e esta documentação, sem inserir valores reais.
