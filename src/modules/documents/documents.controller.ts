@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Post,
   Req,
@@ -22,14 +23,10 @@ export class DocumentsController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
   async sign(
     @UploadedFile() file: Express.Multer.File,
+    @Body() dto: SignDocumentDto,
     @Req() request: AuthenticatedRequest,
     @Res() response: Response,
   ): Promise<void> {
-    const body = request.body as Record<string, unknown>;
-    const dto = new SignDocumentDto();
-    dto.page = Number(body.page);
-    dto.x = Number(body.x);
-    dto.y = Number(body.y);
     const result = await this.documents.sign(file, dto, request.user.id);
     response
       .status(200)
