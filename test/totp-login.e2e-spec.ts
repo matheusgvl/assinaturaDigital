@@ -136,6 +136,39 @@ describe('TOTP login (integration)', () => {
       .get('/api/v1/auth/me')
       .set('Authorization', `Bearer ${refreshed.body.accessToken}`)
       .expect(200);
+
+    const alerts = await request(app.getHttpServer())
+      .get('/api/v1/auth/alerts')
+      .set('Authorization', `Bearer ${refreshed.body.accessToken}`)
+      .expect(200);
+    const invalidAlert = alerts.body.find(
+      (alert: { type: string }) => alert.type === 'invalid_totp',
+    );
+    expect(invalidAlert).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        type: 'invalid_totp',
+        read: false,
+      }),
+    );
+    expect(invalidAlert).not.toHaveProperty('code');
+    expect(invalidAlert).not.toHaveProperty('secret');
+    expect(JSON.stringify(invalidAlert)).not.toContain('000000');
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/alerts/read')
+      .set('Authorization', `Bearer ${refreshed.body.accessToken}`)
+      .send({ ids: [invalidAlert.id] })
+      .expect(204);
+    const readAlerts = await request(app.getHttpServer())
+      .get('/api/v1/auth/alerts')
+      .set('Authorization', `Bearer ${refreshed.body.accessToken}`)
+      .expect(200);
+    expect(
+      readAlerts.body.find(
+        (alert: { id: string }) => alert.id === invalidAlert.id,
+      ).read,
+    ).toBe(true);
   });
 
   it('accepts one recovery code and rejects its reuse', async () => {
