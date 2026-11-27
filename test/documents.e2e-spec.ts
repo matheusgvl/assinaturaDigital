@@ -56,6 +56,8 @@ describe('document signing flow (integration)', () => {
   let app: INestApplication;
   let accessToken: string;
 
+  jest.setTimeout(30000);
+
   beforeAll(async () => {
     configureJwtKeys();
     const moduleFixture = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -164,6 +166,41 @@ describe('document signing flow (integration)', () => {
           code: 'API_001',
           message: 'Too many verification requests',
         });
+      });
+  });
+
+  it('keeps the rate limit atomic under concurrent verification requests', async () => {
+    await app.get(DataSource).query(
+      'DELETE FROM "auth_rate_limits" WHERE "scope" = $1',
+      ['document_verify'],
+    );
+    const unsignedPdf = Buffer.from('%PDF-1.7\n%%EOF');
+    const responses = await Promise.all(
+      Array.from({ length: 40 }, () =>
+        request(app.getHttpServer())
+          .post('/api/v1/documents/verify')
+          .attach('file', unsignedPdf, 'unsigned.pdf'),
+      ),
+    );
+
+    expect(responses.filter(({ status }) => status === 201)).toHaveLength(30);
+    expect(responses.filter(({ status }) => status === 429)).toHaveLength(10);
+    expect(responses.some(({ status }) => status >= 500)).toBe(false);
+  });
+
+  it('rejects malformed multipart coordinates through the global validation pipe', async () => {
+    const original = await createPdf();
+    await request(app.getHttpServer())
+      .post('/api/v1/documents/sign')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .field('page', 'one')
+      .field('x', 'not-a-number')
+      .field('y', '20')
+      .attach('file', original, 'document.pdf')
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({ code: 'VAL_001', message: 'Validation failed' });
+        expect(JSON.stringify(body)).not.toContain('not-a-number');
       });
   });
 });
