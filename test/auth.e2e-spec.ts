@@ -31,11 +31,11 @@ function restoreJwtKeys(previous: {
   else process.env.JWT_PUBLIC_KEY_B64 = previous.publicKey;
 }
 
-function cookieValue(response: request.Response): string {
+function cookieValue(response: request.Response, name: string): string {
   const header = response.headers['set-cookie'];
   const setCookie = Array.isArray(header) ? header : header ? [header] : [];
-  const cookie = setCookie.find((entry: string) => entry.startsWith('refresh_token='));
-  if (!cookie) throw new Error('refresh cookie was not issued');
+  const cookie = setCookie.find((entry: string) => entry.startsWith(`${name}=`));
+  if (!cookie) throw new Error(`${name} cookie was not issued`);
   return cookie.split(';', 1)[0];
 }
 
@@ -77,7 +77,26 @@ describe('authentication flow (integration)', () => {
       .send({ email, password })
       .expect(200);
     expect(login.body.accessToken).toMatch(/^ey/);
-    const originalCookie = cookieValue(login);
+    const originalCookie = cookieValue(login, 'refresh_token');
+    const csrfCookie = cookieValue(login, 'csrf_token');
+    expect(login.headers['set-cookie']).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('refresh_token='),
+        expect.stringContaining('SameSite=Strict'),
+        expect.stringContaining('csrf_token='),
+      ]),
+    );
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', originalCookie)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [originalCookie, csrfCookie])
+      .set('X-CSRF-Token', 'wrong-token')
+      .expect(403);
 
     await request(app.getHttpServer())
       .get('/api/v1/auth/me')
@@ -92,24 +111,29 @@ describe('authentication flow (integration)', () => {
 
     const refresh = await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
-      .set('Cookie', originalCookie)
+      .set('Cookie', [originalCookie, csrfCookie])
+      .set('X-CSRF-Token', csrfCookie.slice('csrf_token='.length))
       .expect(200);
     expect(refresh.body.accessToken).toMatch(/^ey/);
-    const rotatedCookie = cookieValue(refresh);
+    const rotatedCookie = cookieValue(refresh, 'refresh_token');
+    const rotatedCsrfCookie = cookieValue(refresh, 'csrf_token');
     expect(rotatedCookie).not.toBe(originalCookie);
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
-      .set('Cookie', originalCookie)
+      .set('Cookie', [originalCookie, rotatedCsrfCookie])
+      .set('X-CSRF-Token', rotatedCsrfCookie.slice('csrf_token='.length))
       .expect(401);
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/logout')
-      .set('Cookie', rotatedCookie)
+      .set('Cookie', [rotatedCookie, rotatedCsrfCookie])
+      .set('X-CSRF-Token', rotatedCsrfCookie.slice('csrf_token='.length))
       .expect(204);
     await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
-      .set('Cookie', rotatedCookie)
+      .set('Cookie', [rotatedCookie, rotatedCsrfCookie])
+      .set('X-CSRF-Token', rotatedCsrfCookie.slice('csrf_token='.length))
       .expect(401);
   });
 
