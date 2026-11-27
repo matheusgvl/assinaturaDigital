@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Post,
+  Param,
   Req,
   Res,
   UseGuards,
@@ -148,5 +150,28 @@ export class AuthController {
       email: user.email,
       totpEnabled: user.totpEnabled,
     };
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  sessions(@Req() request: AuthenticatedRequest) {
+    return this.auth.listActiveSessions(request.user.id);
+  }
+
+  @Delete('sessions/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeSession(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') sessionId: string,
+  ): Promise<void> {
+    await this.auth.revokeSession(request.user.id, sessionId);
+  }
+
+  @Post('sessions/revoke-all')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeAllSessions(@Req() request: AuthenticatedRequest): Promise<void> {
+    await this.auth.revokeAllSessions(request.user.id);
   }
 }

@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { Repository } from 'typeorm';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 import { API_ERROR_CODES } from '../../common/http/errors/api-error-codes';
 import { ApiException } from '../../common/http/errors/api.exception';
 import { hashPassword, verifyPassword } from './password-hasher';
@@ -179,6 +179,42 @@ export class AuthService {
       session.revokedAt = new Date();
       await this.sessions.save(session);
     }
+  }
+
+  async listActiveSessions(userId: string) {
+    const sessions = await this.sessions.find({
+      where: { userId, revokedAt: IsNull(), expiresAt: MoreThan(new Date()) },
+      order: { createdAt: 'DESC' },
+    });
+    return sessions.map((session) => ({
+      id: session.id,
+      current: false,
+      userAgent: session.userAgent,
+      createdAt: session.createdAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+    }));
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    const session = await this.sessions.findOne({ where: { id: sessionId, userId } });
+    if (!session) {
+      throw new ApiException(
+        API_ERROR_CODES.AUTHENTICATION,
+        HttpStatus.NOT_FOUND,
+        'Session not found',
+      );
+    }
+    if (!session.revokedAt) {
+      session.revokedAt = new Date();
+      await this.sessions.save(session);
+    }
+  }
+
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.sessions.update(
+      { userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
   }
 
   getUser(userId: string): Promise<User | null> {

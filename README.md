@@ -144,6 +144,8 @@ O armazenamento de credenciais com Argon2id está em [`docs/REQ-02-ARGON2ID.md`]
 
 O contrato de cadastro, login, sessões, refresh rotacionado e logout está em [`docs/REQ-03-AUTHENTICATION-CORE.md`](docs/REQ-03-AUTHENTICATION-CORE.md).
 
+A listagem e revogação de sessões ativas estão disponíveis em `GET /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/:id` e `POST /api/v1/auth/sessions/revoke-all`; cada operação é filtrada pelo usuário autenticado.
+
 O fluxo de assinatura criptográfica e a política de armazenamento das chaves estão em [`docs/REQ-46-PDF-SIGNATURE.md`](docs/REQ-46-PDF-SIGNATURE.md). A verificação pública do CMS embutido está em [`docs/REQ-50-PDF-VERIFICATION.md`](docs/REQ-50-PDF-VERIFICATION.md).
 
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
