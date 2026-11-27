@@ -70,7 +70,7 @@ describe('PostgreSQL integration', () => {
       expect(result).toEqual([{ result: 1 }]);
       expect(dataSource.isInitialized).toBe(true);
       await request(app.getHttpServer())
-        .get('/health')
+        .get('/api/v1/health')
         .expect(200)
         .expect({ status: 'ok', service: 'assinatura-digital-api' });
 
