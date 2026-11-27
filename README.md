@@ -148,6 +148,20 @@ A listagem e revogação de sessões ativas estão disponíveis em `GET /api/v1/
 
 O fluxo de assinatura criptográfica e a política de armazenamento das chaves estão em [`docs/REQ-46-PDF-SIGNATURE.md`](docs/REQ-46-PDF-SIGNATURE.md). A verificação pública do CMS embutido está em [`docs/REQ-50-PDF-VERIFICATION.md`](docs/REQ-50-PDF-VERIFICATION.md).
 
+### Worker isolado de PDF
+
+Para assinar ou verificar PDFs, instale o Docker com containers Linux e construa a imagem local após instalar as dependências. No Windows, use o Docker Desktop no modo Linux.
+
+```powershell
+npm ci
+npm run build
+docker build -f Dockerfile.pdf-worker -t assinatura-pdf-worker:local .
+```
+
+Cada trabalho usa um container descartável sem rede, sem diretórios do host montados, com filesystem raiz somente leitura e limite de memória, CPU, processos e tempo. A API se comunica por stdin/stdout em um canal binário e usa `--pull=never`. Se a imagem ou o Docker estiver indisponível, as rotas de PDF respondem 503. O health check e a autenticação podem iniciar sem a imagem.
+
+O acesso ao daemon Docker é um privilégio operacional. Use o daemon dedicado a esta aplicação ou o Docker Desktop local autorizado. O container de PDF não recebe o socket Docker, as variáveis da API ou a chave mestra.
+
 A política de compatibilidade, depreciação e criação de novas versões está em [`docs/RNF-17-API-VERSIONING.md`](docs/RNF-17-API-VERSIONING.md).
 
 ## Segurança de sessão validada na etapa pós-apresentação
