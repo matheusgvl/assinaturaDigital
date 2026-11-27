@@ -6,6 +6,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import {
+  codeForHttpStatus,
+  isApiErrorCode,
+} from '../errors/api-error-codes';
+import { ApiException } from '../errors/api.exception';
 
 interface ApiErrorResponse {
   code: string;
@@ -26,8 +31,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const request = http.getRequest<Request>();
     const status = this.getStatus(exception);
     const body: ApiErrorResponse = {
-      code: this.getCode(),
-      message: this.getMessage(status),
+      code: this.getCode(exception, status),
+      message: this.getMessage(exception, status),
       timestamp: new Date().toISOString(),
       path: request.url,
     };
@@ -46,11 +51,19 @@ export class ApiExceptionFilter implements ExceptionFilter {
       : HttpStatus.INTERNAL_SERVER_ERROR;
   }
 
-  private getCode(): string {
-    return 'API_001';
+  private getCode(exception: unknown, status: number): string {
+    if (exception instanceof ApiException && isApiErrorCode(exception.code)) {
+      return exception.code;
+    }
+
+    return codeForHttpStatus(status);
   }
 
-  private getMessage(status: number): string {
+  private getMessage(exception: unknown, status: number): string {
+    if (exception instanceof ApiException) {
+      return exception.publicMessage;
+    }
+
     switch (status) {
       case HttpStatus.BAD_REQUEST:
         return 'Invalid request';
