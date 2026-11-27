@@ -1,12 +1,16 @@
 import { INestApplication } from '@nestjs/common';
 import { generateKeyPairSync } from 'node:crypto';
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap/configure-app';
 
-function configureJwtKeys(): { privateKey: string | undefined; publicKey: string | undefined } {
+function configureJwtKeys(): {
+  privateKey: string | undefined;
+  publicKey: string | undefined;
+} {
   const previous = {
     privateKey: process.env.JWT_PRIVATE_KEY_B64,
     publicKey: process.env.JWT_PUBLIC_KEY_B64,
@@ -34,14 +38,19 @@ function restoreJwtKeys(previous: {
 function cookieValue(response: request.Response, name: string): string {
   const header = response.headers['set-cookie'];
   const setCookie = Array.isArray(header) ? header : header ? [header] : [];
-  const cookie = setCookie.find((entry: string) => entry.startsWith(`${name}=`));
+  const cookie = setCookie.find((entry: string) =>
+    entry.startsWith(`${name}=`),
+  );
   if (!cookie) throw new Error(`${name} cookie was not issued`);
   return cookie.split(';', 1)[0];
 }
 
 describe('authentication flow (integration)', () => {
   let app: INestApplication;
-  let previousKeys: { privateKey: string | undefined; publicKey: string | undefined };
+  let previousKeys: {
+    privateKey: string | undefined;
+    publicKey: string | undefined;
+  };
 
   jest.setTimeout(30000);
 
@@ -170,7 +179,9 @@ describe('authentication flow (integration)', () => {
         code: 'AUTH_001',
         message: 'Invalid credentials',
       });
-      expect(JSON.stringify(response.body)).not.toMatch(/email|password|stack|sql/i);
+      expect(JSON.stringify(response.body)).not.toMatch(
+        /email|password|stack|sql/i,
+      );
     }
 
     await request(app.getHttpServer())
@@ -186,10 +197,11 @@ describe('authentication flow (integration)', () => {
       .post('/api/v1/auth/register')
       .send({ name: 'TOTP Guard', email, password })
       .expect(201);
-    await app.get(DataSource).query(
-      'UPDATE "users" SET "totp_enabled" = true WHERE "id" = $1',
-      [register.body.id],
-    );
+    await app
+      .get(DataSource)
+      .query('UPDATE "users" SET "totp_enabled" = true WHERE "id" = $1', [
+        register.body.id,
+      ]);
 
     const login = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
@@ -250,13 +262,14 @@ describe('authentication flow (integration)', () => {
     await request(app.getHttpServer())
       .get('/api/v1/auth/sessions')
       .set('Authorization', `Bearer ${secondLogin.body.accessToken}`)
-      .expect(200)
-      .expect([]);
+      .expect(401);
     expect(firstRegister.body.id).toBeTruthy();
   });
 
   it('limits login attempts independently by IP', async () => {
-    await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
+    await app
+      .get(DataSource)
+      .query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
     for (let attempt = 0; attempt < 30; attempt += 1) {
       await request(app.getHttpServer())
         .post('/api/v1/auth/login')
@@ -269,7 +282,10 @@ describe('authentication flow (integration)', () => {
 
     const limited = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .send({ email: `unknown-final-${Date.now()}@example.com`, password: 'Wrong-password9' })
+      .send({
+        email: `unknown-final-${Date.now()}@example.com`,
+        password: 'Wrong-password9',
+      })
       .expect(429);
     expect(limited.body).toMatchObject({
       code: 'API_001',
@@ -278,12 +294,17 @@ describe('authentication flow (integration)', () => {
   });
 
   it('keeps the IP login limit atomic under concurrent attempts', async () => {
-    await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
+    await app
+      .get(DataSource)
+      .query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
     const responses = await Promise.all(
       Array.from({ length: 40 }, (_, attempt) =>
         request(app.getHttpServer())
           .post('/api/v1/auth/login')
-          .send({ email: `concurrent-ip-${attempt}@example.com`, password: 'Wrong-password9' }),
+          .send({
+            email: `concurrent-ip-${attempt}@example.com`,
+            password: 'Wrong-password9',
+          }),
       ),
     );
 
@@ -293,17 +314,185 @@ describe('authentication flow (integration)', () => {
   });
 
   it('keeps the account login limit independent from the IP limit', async () => {
-    await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" IN ($1, $2)', ['account', 'ip']);
+    await app
+      .get(DataSource)
+      .query('DELETE FROM "auth_rate_limits" WHERE "scope" IN ($1, $2)', [
+        'account',
+        'ip',
+      ]);
     const responses = await Promise.all(
       Array.from({ length: 25 }, () =>
-        request(app.getHttpServer())
-          .post('/api/v1/auth/login')
-          .send({ email: 'same-account@example.com', password: 'Wrong-password9' }),
+        request(app.getHttpServer()).post('/api/v1/auth/login').send({
+          email: 'same-account@example.com',
+          password: 'Wrong-password9',
+        }),
       ),
     );
 
     expect(responses.filter(({ status }) => status === 401)).toHaveLength(20);
     expect(responses.filter(({ status }) => status === 429)).toHaveLength(5);
     expect(responses.some(({ status }) => status >= 500)).toBe(false);
+  });
+
+  it('binds access tokens to a session and returns the current session', async () => {
+    const email = `claims-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Claims User', email, password })
+      .expect(201);
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('User-Agent', 'auth-test-agent/1')
+      .send({ email, password })
+      .expect(200);
+    const claims = jwt.decode(login.body.accessToken) as Record<
+      string,
+      unknown
+    >;
+    expect(claims).toEqual(
+      expect.objectContaining({
+        jti: expect.any(String),
+        session_id: expect.any(String),
+        iat: expect.any(Number),
+        exp: expect.any(Number),
+        ip_hash: expect.any(String),
+        ua_hash: expect.any(String),
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/sessions')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .set('User-Agent', 'auth-test-agent/1')
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toHaveLength(1);
+        expect(response.body[0].current).toBe(true);
+      });
+  });
+
+  it('rejects a changed User-Agent but only observes an IP change', async () => {
+    const email = `context-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Context User', email, password })
+      .expect(201);
+
+    const http = app.getHttpAdapter().getInstance();
+    http.set('trust proxy', 1);
+    try {
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .set('User-Agent', 'auth-test-agent/2')
+        .set('X-Forwarded-For', '192.0.2.10')
+        .send({ email, password })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${login.body.accessToken}`)
+        .set('User-Agent', 'auth-test-agent/3')
+        .set('X-Forwarded-For', '198.51.100.20')
+        .expect(401);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${login.body.accessToken}`)
+        .set('User-Agent', 'auth-test-agent/2')
+        .set('X-Forwarded-For', '198.51.100.20')
+        .expect(200);
+    } finally {
+      http.set('trust proxy', false);
+    }
+  });
+
+  it('revokes the access token on logout through the denylist', async () => {
+    const email = `denylist-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Denylist User', email, password })
+      .expect(201);
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+    const refreshCookie = cookieValue(login, 'refresh_token');
+    const csrfCookie = cookieValue(login, 'csrf_token');
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .set('Cookie', [refreshCookie, csrfCookie])
+      .set('X-CSRF-Token', csrfCookie.slice('csrf_token='.length))
+      .expect(204);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(401);
+  });
+
+  it('invalidates all sessions and previous access tokens after password change', async () => {
+    const email = `password-change-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    const newPassword = 'New-strong-password9';
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Password User', email, password })
+      .expect(201);
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/password')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .send({ currentPassword: password, newPassword })
+      .expect(204);
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password: newPassword })
+      .expect(200);
+  });
+
+  it('allows one atomic refresh and rejects its concurrent reuse', async () => {
+    const email = `refresh-race-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Refresh Race', email, password })
+      .expect(201);
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+    const refreshCookie = cookieValue(login, 'refresh_token');
+    const csrfCookie = cookieValue(login, 'csrf_token');
+    const csrfToken = csrfCookie.slice('csrf_token='.length);
+
+    const responses = await Promise.all(
+      [0, 1].map(() =>
+        request(app.getHttpServer())
+          .post('/api/v1/auth/refresh')
+          .set('Cookie', [refreshCookie, csrfCookie])
+          .set('X-CSRF-Token', csrfToken),
+      ),
+    );
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      200, 401,
+    ]);
+    expect(responses.some((response) => response.status >= 500)).toBe(false);
   });
 });

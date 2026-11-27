@@ -14,19 +14,22 @@ import {
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { ApiException } from '../../common/http/errors/api.exception';
+import { AuthenticatedRequest, JwtAuthGuard } from './jwt-auth.guard';
 import {
-  AuthenticatedRequest,
-  JwtAuthGuard,
-} from './jwt-auth.guard';
-import { AuthService, REFRESH_TOKEN_COOKIE, REFRESH_TOKEN_TTL_MS } from './auth.service';
-import { LoginDto, RegisterDto } from './auth.dto';
+  AuthService,
+  REFRESH_TOKEN_COOKIE,
+  REFRESH_TOKEN_TTL_MS,
+} from './auth.service';
+import { ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';
 
 export const CSRF_TOKEN_COOKIE = 'csrf_token';
 
 function readCookie(request: Request, name: string): string | undefined {
   const header = request.headers.cookie;
   if (!header) return undefined;
-  const entry = header.split(';').find((part) => part.trim().startsWith(`${name}=`));
+  const entry = header
+    .split(';')
+    .find((part) => part.trim().startsWith(`${name}=`));
   if (!entry) return undefined;
   try {
     return decodeURIComponent(entry.trim().slice(name.length + 1));
@@ -63,7 +66,9 @@ function csrfTokenIsValid(request: Request): boolean {
 
   const cookieDigest = createHash('sha256').update(cookieToken).digest();
   const headerDigest = createHash('sha256').update(headerValue).digest();
-  return timingSafeEqual(cookieDigest, headerDigest) && cookieToken === headerValue;
+  return (
+    timingSafeEqual(cookieDigest, headerDigest) && cookieToken === headerValue
+  );
 }
 
 function assertCsrf(request: Request): void {
@@ -74,9 +79,7 @@ function assertCsrf(request: Request): void {
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly auth: AuthService,
-  ) {}
+  constructor(private readonly auth: AuthService) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -109,8 +112,13 @@ export class AuthController {
   ) {
     assertCsrf(request);
     const token = readCookie(request, REFRESH_TOKEN_COOKIE);
-    if (!token) throw new ApiException('AUTH_001', 401, 'Authentication required');
-    const result = await this.auth.refresh(token, request.headers['user-agent']);
+    if (!token)
+      throw new ApiException('AUTH_001', 401, 'Authentication required');
+    const result = await this.auth.refresh(
+      token,
+      request.headers['user-agent'],
+      request.ip ?? 'unknown',
+    );
     setRefreshCookie(response, result.refreshToken);
     setCsrfCookie(response, randomBytes(32).toString('base64url'));
     return { accessToken: result.accessToken };
@@ -125,6 +133,12 @@ export class AuthController {
     assertCsrf(request);
     const token = readCookie(request, REFRESH_TOKEN_COOKIE);
     if (token) await this.auth.revokeRefreshToken(token);
+    const authorization = request.headers.authorization;
+    const accessToken =
+      typeof authorization === 'string' && authorization.startsWith('Bearer ')
+        ? authorization.slice('Bearer '.length)
+        : undefined;
+    await this.auth.revokeAccessToken(accessToken);
     response.clearCookie(REFRESH_TOKEN_COOKIE, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -143,7 +157,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async me(@Req() request: AuthenticatedRequest) {
     const user = await this.auth.getUser(request.user.id);
-    if (!user) throw new ApiException('AUTH_001', 401, 'Authentication required');
+    if (!user)
+      throw new ApiException('AUTH_001', 401, 'Authentication required');
     return {
       id: user.id,
       name: user.name,
@@ -155,7 +170,20 @@ export class AuthController {
   @Get('sessions')
   @UseGuards(JwtAuthGuard)
   sessions(@Req() request: AuthenticatedRequest) {
-    return this.auth.listActiveSessions(request.user.id);
+    return this.auth.listActiveSessions(
+      request.user.id,
+      request.user.sessionId,
+    );
+  }
+
+  @Post('password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async changePassword(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<void> {
+    await this.auth.changePassword(request.user.id, dto);
   }
 
   @Delete('sessions/:id')

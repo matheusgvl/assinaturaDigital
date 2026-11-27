@@ -1,19 +1,15 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from './auth.dto';
-import { AuthTokenService } from './auth-token.service';
+import { AccessTokenPolicyService } from './access-token-policy.service';
 
 export type AuthenticatedRequest = Request & { user: AuthenticatedUser };
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly tokens: AuthTokenService) {}
+  constructor(private readonly policy: AccessTokenPolicyService) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authorization = request.headers.authorization;
     const token =
@@ -21,7 +17,11 @@ export class JwtAuthGuard implements CanActivate {
         ? authorization.slice('Bearer '.length)
         : '';
 
-    request.user = this.tokens.verifyAccessToken(token);
+    request.user = await this.policy.authenticate(
+      token,
+      request.headers['user-agent'],
+      request.ip ?? 'unknown',
+    );
     return true;
   }
 }

@@ -30,6 +30,9 @@ export class User {
   @Column({ name: 'totp_enabled', type: 'boolean', default: false })
   totpEnabled!: boolean;
 
+  @Column({ name: 'password_changed_at', type: 'timestamptz' })
+  passwordChangedAt!: Date;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

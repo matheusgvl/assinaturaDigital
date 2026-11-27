@@ -2,9 +2,7 @@ import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(120)
@@ -37,7 +35,25 @@ export class LoginDto {
   password!: string;
 }
 
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(256)
+  newPassword!: string;
+}
+
 export interface AuthenticatedUser {
   id: string;
   email: string;
+  sessionId?: string;
+  jti?: string;
+  iat?: number;
+  ipHash?: string;
+  userAgentHash?: string;
+  exp?: number;
 }
