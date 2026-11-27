@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { createDecipheriv, createHash, generateKeyPairSync, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { inflateSync } from 'node:zlib';
-import { PDFDocument } from 'pdf-lib';
+import { degrees, PDFDocument } from 'pdf-lib';
 import forge from 'node-forge';
 import request from 'supertest';
 import type { Response as SuperagentResponse } from 'superagent';
@@ -152,6 +152,7 @@ describe('document signing flow (integration)', () => {
     expect(record.originalHash).toBe(sha256(original));
     expect(isIP(record.sourceIp ?? '')).toBeGreaterThan(0);
     expect(record.signedAt.toISOString()).toMatch(/Z$/);
+    expect(record).toMatchObject({ sealPage: 1, sealX: 20, sealY: 20 });
     expect(Object.values(record).some(Buffer.isBuffer)).toBe(false);
 
     await request(app.getHttpServer())
@@ -173,6 +174,27 @@ describe('document signing flow (integration)', () => {
       .attach('file', tampered, 'tampered.pdf')
       .expect(201)
       .expect({ status: 'tampered' });
+  });
+
+  it('signs and records a placement on the selected rotated page', async () => {
+    const source = await PDFDocument.create();
+    source.addPage([210, 297]);
+    source.addPage([280, 600]).setRotation(degrees(90));
+    const pdf = Buffer.from(await source.save());
+    const signed = await request(app.getHttpServer()).post('/api/v1/documents/sign')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .field('page', '2').field('x', '385.5').field('y', '10')
+      .attach('file', pdf, 'rotated.pdf').buffer(true).parse(pdfParser).expect(200);
+    const signedHash = createHash('sha256').update(signed.body as Buffer).digest('hex');
+    const record = await app.get(DataSource).getRepository(DocumentSignature).findOneByOrFail({ signedHash });
+    expect(record).toMatchObject({ sealPage: 2, sealX: 385.5, sealY: 10 });
+
+    for (const [page, x] of [['3', '0'], ['2', '500']]) {
+      await request(app.getHttpServer()).post('/api/v1/documents/sign')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .field('page', page).field('x', x).field('y', '10')
+        .attach('file', pdf, 'rotated.pdf').expect(422);
+    }
   });
 
   it('rejects an active PDF payload before parsing it', async () => {

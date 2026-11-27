@@ -31,6 +31,15 @@ export class DocumentSignature {
   @Column({ name: 'source_ip', type: 'inet', nullable: true })
   sourceIp!: string | null;
 
+  @Column({ name: 'seal_page', type: 'integer', nullable: true })
+  sealPage!: number | null;
+
+  @Column({ name: 'seal_x', type: 'double precision', nullable: true })
+  sealX!: number | null;
+
+  @Column({ name: 'seal_y', type: 'double precision', nullable: true })
+  sealY!: number | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }
