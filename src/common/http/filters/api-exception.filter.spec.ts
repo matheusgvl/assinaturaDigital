@@ -1,5 +1,7 @@
 import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiExceptionFilter } from './api-exception.filter';
+import { API_ERROR_CODES } from '../errors/api-error-codes';
+import { ApiException } from '../errors/api.exception';
 
 function createHost(): {
   host: ArgumentsHost;
@@ -33,7 +35,7 @@ describe('ApiExceptionFilter', () => {
 
     expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(response.json).toHaveBeenCalledWith({
-      code: 'API_001',
+      code: API_ERROR_CODES.VALIDATION,
       message: 'Invalid request',
       timestamp: expect.any(String),
       path: '/sensitive',
@@ -41,6 +43,27 @@ describe('ApiExceptionFilter', () => {
     expect(JSON.stringify(response.json.mock.calls[0][0])).not.toContain(
       'database password',
     );
+  });
+
+  it('preserves only a known application code', () => {
+    const filter = new ApiExceptionFilter();
+    const { host, response } = createHost();
+
+    filter.catch(
+      new ApiException(
+        API_ERROR_CODES.DOCUMENT,
+        HttpStatus.NOT_FOUND,
+        'Document not found',
+      ),
+      host,
+    );
+
+    expect(response.json).toHaveBeenCalledWith({
+      code: API_ERROR_CODES.DOCUMENT,
+      message: 'Document not found',
+      timestamp: expect.any(String),
+      path: '/sensitive',
+    });
   });
 
   it('does not expose details from unexpected exceptions', () => {
@@ -53,7 +76,7 @@ describe('ApiExceptionFilter', () => {
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
     expect(response.json).toHaveBeenCalledWith({
-      code: 'API_001',
+      code: API_ERROR_CODES.API,
       message: 'Internal server error',
       timestamp: expect.any(String),
       path: '/sensitive',
