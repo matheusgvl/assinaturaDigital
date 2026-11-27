@@ -12,16 +12,18 @@
 
 ## Última ação concluída
 
-Os PRs encadeados de PDF foram publicados sem merge automático: [#145](https://github.com/matheusgvl/assinaturaDigital/pull/145) para #59, [#146](https://github.com/matheusgvl/assinaturaDigital/pull/146) para #62 e [#147](https://github.com/matheusgvl/assinaturaDigital/pull/147) para #63. O último usa #146 como base e #146 usa #145, para que cada revisão contenha somente a issue correspondente.
+O PR #145 de #59 foi mesclado externamente na `main`. Os PRs encadeados #146 e #147 também foram mesclados externamente, porém em suas branches-base já encadeadas depois da integração de #145. Por isso não alcançaram `main`. Os commits originais foram preservados e #62 foi republicada como [#150](https://github.com/matheusgvl/assinaturaDigital/pull/150), diretamente contra `main`. #63 permanece pendente da integração correta de #62.
 
 No commit `6cfee61`, `npx tsc --noEmit`, `npm run lint`, `npm run build`, `git diff --check`, o build da imagem e os E2E de documentos e sandbox foram concluídos. O E2E passou com 2 suítes e 10 testes no banco PostgreSQL isolado. A imagem foi identificada como `assinatura-pdf-worker:local`.
 
+Os PRs [#148](https://github.com/matheusgvl/assinaturaDigital/pull/148) e [#149](https://github.com/matheusgvl/assinaturaDigital/pull/149) publicam, respectivamente, os campos #56 e a trilha append-only #55. A trilha foi testada com um papel PostgreSQL restrito e também com o proprietário da migration. O PR [#151](https://github.com/matheusgvl/assinaturaDigital/pull/151) publica #58. Seu E2E confirmou IP novo, ativação e desativação de TOTP, troca de senha, leitura e remoção do segredo no banco isolado.
+
 ## Trabalho pendente imediato
 
-1. Acompanhar checks e revisão dos PRs #145 a #147, sem mesclá-los antes de aprovação.
-2. Concluir a implementação e os testes da auditoria #55 e dos campos #56 no worktree próprio.
-3. Implementar alertas de atividade #58 e validar migrations, rollback e reaplicação de #69 em banco descartável.
-4. Atualizar esta matriz, a revisão de segurança e os relatórios após cada bloco validado.
+1. Acompanhar checks e revisão dos PRs #148 a #151, sem mesclá-los diretamente.
+2. Após a integração de #150, abrir a integração de #63 diretamente contra `main` sem reescrever o histórico.
+3. Validar migrations, rollback e reaplicação de #69 em banco descartável.
+4. Atualizar matriz, revisão de segurança e relatórios após cada bloco validado.
 
 ## Restrições preservadas
 
