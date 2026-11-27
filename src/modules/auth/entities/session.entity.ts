@@ -13,6 +13,9 @@ export class Session {
   @PrimaryColumn('uuid')
   id!: string;
 
+  @Column({ name: 'family_id', type: 'uuid' })
+  familyId!: string;
+
   @Column({ name: 'user_id', type: 'uuid' })
   userId!: string;
 
@@ -20,7 +23,12 @@ export class Session {
   @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @Column({ name: 'refresh_token_hash', type: 'char', length: 64, unique: true })
+  @Column({
+    name: 'refresh_token_hash',
+    type: 'char',
+    length: 64,
+    unique: true,
+  })
   refreshTokenHash!: string;
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
