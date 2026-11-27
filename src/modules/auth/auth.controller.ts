@@ -30,8 +30,14 @@ import {
 } from './auth.dto';
 import { TotpEnrollmentService } from './totp-enrollment.service';
 import { TotpAlertService } from './totp-alert.service';
+import { PasskeyService } from './passkey.service';
+import { PasskeyRegistrationOptionsDto, PasskeyVerificationDto } from './passkey.dto';
 
 export const CSRF_TOKEN_COOKIE = 'csrf_token';
+
+function passkeyContext(request: Request) {
+  return { ip: request.ip ?? 'unknown', userAgent: request.get('User-Agent'), origin: request.get('Origin') };
+}
 
 function readCookie(request: Request, name: string): string | undefined {
   const header = request.headers.cookie;
@@ -92,6 +98,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly totpEnrollment: TotpEnrollmentService,
     private readonly alerts: TotpAlertService,
+    private readonly passkeys: PasskeyService,
   ) {}
 
   @Post('register')
@@ -236,6 +243,40 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   alertsForUser(@Req() request: AuthenticatedRequest) {
     return this.alerts.list(request.user.id);
+  }
+
+  @Post('passkeys/registration/options')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  passkeyRegistrationOptions(@Req() request: AuthenticatedRequest, @Body() dto: PasskeyRegistrationOptionsDto) {
+    return this.passkeys.registrationOptions(request.user, dto.currentPassword, passkeyContext(request));
+  }
+
+  @Post('passkeys/registration/verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  verifyPasskeyRegistration(@Req() request: AuthenticatedRequest, @Body() dto: PasskeyVerificationDto) {
+    return this.passkeys.verifyRegistration(request.user, dto, passkeyContext(request));
+  }
+
+  @Post('passkeys/authentication/options')
+  @HttpCode(HttpStatus.OK)
+  passkeyAuthenticationOptions(@Req() request: Request) {
+    return this.passkeys.authenticationOptions(passkeyContext(request));
+  }
+
+  @Post('passkeys/authentication/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyPasskeyAuthentication(
+    @Req() request: Request,
+    @Body() dto: PasskeyVerificationDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.passkeys.verifyAuthentication(dto, passkeyContext(request));
+    if ('requiresSecondFactor' in result) return { confirmed: true, ...result };
+    setRefreshCookie(response, result.refreshToken);
+    setCsrfCookie(response, randomBytes(32).toString('base64url'));
+    return { confirmed: true, accessToken: result.accessToken, user: result.user };
   }
 
   @Post('alerts/read')

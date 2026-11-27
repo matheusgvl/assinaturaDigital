@@ -39,7 +39,7 @@ describe('TOTP login (integration)', () => {
     await app.init();
     dataSource = app.get(DataSource);
     await dataSource.runMigrations();
-    await dataSource.query('TRUNCATE TABLE "users" CASCADE');
+    await dataSource.query('TRUNCATE TABLE "auth_rate_limits", "users" CASCADE');
 
     email = `totp-login-${Date.now()}@example.com`;
     const registration = await request(app.getHttpServer())

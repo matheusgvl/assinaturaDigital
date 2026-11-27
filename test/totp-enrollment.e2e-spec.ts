@@ -23,7 +23,7 @@ describe('TOTP enrollment (integration)', () => {
     await app.init();
     dataSource = app.get(DataSource);
     await dataSource.runMigrations();
-    await dataSource.query('TRUNCATE TABLE "users" CASCADE');
+    await dataSource.query('TRUNCATE TABLE "auth_rate_limits", "users" CASCADE');
   });
 
   afterAll(async () => {

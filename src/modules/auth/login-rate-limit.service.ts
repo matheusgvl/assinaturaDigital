@@ -54,6 +54,20 @@ export class LoginRateLimitService {
     );
   }
 
+  /** Aplica o limite persistente por IP às rotas públicas de passkey. */
+  async consumePasskeyAttempt(
+    operation: 'options' | 'verify',
+    ip: string,
+  ): Promise<void> {
+    await this.dataSource.transaction((manager) =>
+      this.consumeBucket(manager, {
+        scope: 'ip',
+        key: `passkey:${operation}:${ip}`,
+        limit: IP_LIMIT,
+      }),
+    );
+  }
+
   private async consumeBucket(manager: EntityManager, bucket: Bucket): Promise<void> {
     const hash = keyHash(bucket.key);
     const now = new Date();

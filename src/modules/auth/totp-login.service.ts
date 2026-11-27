@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Not, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Not, Repository } from 'typeorm';
 import { API_ERROR_CODES } from '../../common/http/errors/api-error-codes';
 import { ApiException } from '../../common/http/errors/api.exception';
 import { User } from './entities/user.entity';
@@ -46,11 +46,12 @@ export class TotpLoginService {
     userId: string,
     ip: string,
     userAgent: string | undefined,
+    manager?: EntityManager,
   ): Promise<string> {
     const id = randomUUID();
     const now = new Date();
-    await this.dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(TotpLoginTransaction);
+    const save = async (transaction: EntityManager) => {
+      const repository = transaction.getRepository(TotpLoginTransaction);
       await repository.delete({ userId, consumedAt: IsNull() });
       await repository.save(
         repository.create({
@@ -63,7 +64,9 @@ export class TotpLoginService {
           userAgentHash: contextHash(userAgent ?? ''),
         }),
       );
-    });
+    };
+    if (manager) await save(manager);
+    else await this.dataSource.transaction(save);
     return id;
   }
 
