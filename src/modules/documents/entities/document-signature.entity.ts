@@ -27,6 +27,10 @@ export class DocumentSignature {
   @Column({ name: 'signed_at', type: 'timestamptz' })
   signedAt!: Date;
 
+  /** Ausente apenas em registros criados antes da migration. */
+  @Column({ name: 'source_ip', type: 'inet', nullable: true })
+  sourceIp!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }
