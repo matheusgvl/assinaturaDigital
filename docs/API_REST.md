@@ -52,6 +52,8 @@ O código é controlado pelo backend: `VAL_001` representa validação, `AUTH_00
 
 Falhas de entrada usam `400`, ausência de autenticação usa `401`, falta de permissão usa `403`, recurso inexistente usa `404` e falhas não tratadas usam `500`. O filtro global preserva esses status e não transforma falhas internas em respostas de sucesso.
 
+As respostas HTTP incluem uma política CSP restritiva: `default-src 'self'`, `script-src 'self'`, `object-src 'none'` e `frame-ancestors 'none'`. Fontes curinga e scripts inline/eval não são permitidos.
+
 ## Organização
 
 Controllers são a camada de transporte: recebem HTTP, delegam e retornam contratos. Services concentram regras de domínio e não dependem do frontend. Módulos agrupam responsabilidades por domínio. O frontend deve consumir somente estes contratos HTTP e nunca importar módulos internos ou acessar o banco diretamente.
