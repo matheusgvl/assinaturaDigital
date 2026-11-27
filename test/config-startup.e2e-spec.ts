@@ -1,11 +1,18 @@
 import { INestApplication } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap/configure-app';
+import { validateEnvironment } from '../src/config/app.config';
 
 async function compileApplication(): Promise<TestingModule> {
   return Test.createTestingModule({ imports: [AppModule] }).compile();
+}
+
+/** Valida a falha na fronteira do ConfigModule, antes de abrir conexões. */
+async function validateStartupConfiguration() {
+  await ConfigModule.forRoot({ ignoreEnvFile: true, validate: validateEnvironment });
 }
 
 async function withPort<T>(
@@ -50,7 +57,7 @@ describe('ConfigModule startup validation (integration)', () => {
 
   it('rejects startup when PORT is absent', async () => {
     await withPort(undefined, async () => {
-      await expect(compileApplication()).rejects.toThrow(
+      await expect(validateStartupConfiguration()).rejects.toThrow(
         'PORT is required and must be an integer between 1 and 65535',
       );
     });
@@ -59,7 +66,7 @@ describe('ConfigModule startup validation (integration)', () => {
   it('rejects startup for a non-decimal PORT without echoing the value', async () => {
     await withPort('3e3', async () => {
       try {
-        await compileApplication();
+        await validateStartupConfiguration();
         throw new Error('ConfigModule unexpectedly initialized');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
