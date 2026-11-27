@@ -14,6 +14,9 @@ memória, recebe o selo visual e um placeholder de assinatura. A biblioteca
 `@signpdf` produz uma assinatura CMS detached com `ByteRange` e `Contents`
 embutidos no PDF retornado.
 
+O selo visual exibe o nome do assinante, o instante UTC, o SHA-256 integral do
+PDF original (em duas linhas) e o identificador UUID da assinatura.
+
 ## Chaves por usuário
 
 Na primeira assinatura do usuário, o backend gera um par RSA de 2048 bits e um

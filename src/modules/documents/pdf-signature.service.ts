@@ -52,6 +52,7 @@ export class PdfSignatureService {
     x: number,
     y: number,
     signatureId: string,
+    documentHash: string,
     signedAt: Date,
   ): Promise<Buffer> {
     const document = await PDFDocument.load(original, { updateMetadata: false });
@@ -84,10 +85,34 @@ export class PdfSignatureService {
       color: rgb(0.05, 0.1, 0.2),
       maxWidth: sealWidth - 16,
     });
-    page.drawText(`${signedAt.toISOString()} | ${signatureId.slice(0, 8)}`, {
+    page.drawText(signedAt.toISOString(), {
       x: x + 8,
-      y: y + 18,
-      size: 6,
+      y: y + 35,
+      size: 5.5,
+      font,
+      color: rgb(0.05, 0.1, 0.2),
+      maxWidth: sealWidth - 16,
+    });
+    page.drawText(`SHA-256: ${documentHash.slice(0, 32)}`, {
+      x: x + 8,
+      y: y + 25,
+      size: 5.5,
+      font,
+      color: rgb(0.05, 0.1, 0.2),
+      maxWidth: sealWidth - 16,
+    });
+    page.drawText(documentHash.slice(32), {
+      x: x + 8,
+      y: y + 16,
+      size: 5.5,
+      font,
+      color: rgb(0.05, 0.1, 0.2),
+      maxWidth: sealWidth - 16,
+    });
+    page.drawText(`ID: ${signatureId}`, {
+      x: x + 8,
+      y: y + 7,
+      size: 5.5,
       font,
       color: rgb(0.05, 0.1, 0.2),
       maxWidth: sealWidth - 16,
