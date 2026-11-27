@@ -29,6 +29,9 @@ As rotas ficam sob `/api/v1/auth`:
 - `GET /me` (`200`): exige Bearer token.
 - `POST /refresh` (`200`): exige o refresh cookie, `csrf_token` e `X-CSRF-Token` correspondente; gira os dois cookies.
 - `POST /logout` (`204`): exige o mesmo par CSRF, revoga o refresh atual e limpa os cookies.
+- `GET /sessions` (`200`): lista somente as sessões ativas do usuário autenticado.
+- `DELETE /sessions/:id` (`204`): encerra uma sessão pertencente ao usuário.
+- `POST /sessions/revoke-all` (`204`): encerra todas as sessões do usuário.
 
 ### Documentos
 

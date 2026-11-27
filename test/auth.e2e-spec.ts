@@ -200,6 +200,58 @@ describe('authentication flow (integration)', () => {
     expect(login.headers['set-cookie']).toBeUndefined();
   });
 
+  it('isolates active sessions and supports individual and global revocation', async () => {
+    const firstEmail = `sessions-a-${Date.now()}@example.com`;
+    const secondEmail = `sessions-b-${Date.now()}@example.com`;
+    const password = 'Strong-password9';
+    const firstRegister = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Sessions A', email: firstEmail, password })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ name: 'Sessions B', email: secondEmail, password })
+      .expect(201);
+    const firstLogin = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: firstEmail, password })
+      .expect(200);
+    const secondLogin = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: secondEmail, password })
+      .expect(200);
+    const firstSessions = await request(app.getHttpServer())
+      .get('/api/v1/auth/sessions')
+      .set('Authorization', `Bearer ${firstLogin.body.accessToken}`)
+      .expect(200);
+    const secondSessions = await request(app.getHttpServer())
+      .get('/api/v1/auth/sessions')
+      .set('Authorization', `Bearer ${secondLogin.body.accessToken}`)
+      .expect(200);
+    expect(firstSessions.body).toHaveLength(1);
+    expect(secondSessions.body).toHaveLength(1);
+    expect(firstSessions.body[0].userId).toBeUndefined();
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/auth/sessions/${firstSessions.body[0].id}`)
+      .set('Authorization', `Bearer ${secondLogin.body.accessToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/auth/sessions/${firstSessions.body[0].id}`)
+      .set('Authorization', `Bearer ${firstLogin.body.accessToken}`)
+      .expect(204);
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/sessions/revoke-all')
+      .set('Authorization', `Bearer ${secondLogin.body.accessToken}`)
+      .expect(204);
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/sessions')
+      .set('Authorization', `Bearer ${secondLogin.body.accessToken}`)
+      .expect(200)
+      .expect([]);
+    expect(firstRegister.body.id).toBeTruthy();
+  });
+
   it('limits login attempts independently by IP', async () => {
     await app.get(DataSource).query('DELETE FROM "auth_rate_limits" WHERE "scope" = $1', ['ip']);
     for (let attempt = 0; attempt < 30; attempt += 1) {
