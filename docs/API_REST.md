@@ -1,0 +1,57 @@
+# Contratos da API REST
+
+## Escopo atual
+
+O backend usa NestJS como API HTTP independente do frontend. O único recurso disponível nesta etapa é o health check:
+
+```http
+GET /health
+Accept: application/json
+```
+
+Resposta `200 OK` (`application/json`):
+
+```json
+{
+  "status": "ok",
+  "service": "assinatura-digital-api"
+}
+```
+
+Os campos são estáveis, tipados no backend e não incluem banco de dados, ambiente, credenciais ou segredos.
+
+## Convenções REST
+
+- `GET` consulta recursos.
+- `POST` cria recursos ou dispara operações explícitas.
+- `PUT` substitui um recurso integralmente.
+- `PATCH` atualiza um recurso parcialmente.
+- `DELETE` remove ou revoga um recurso.
+- Rotas usam substantivos claros e parâmetros de rota para identificar recursos.
+- Query parameters ficam reservados para filtros e paginação.
+- JSON é o formato padrão; `multipart/form-data` será usado apenas quando o upload de PDF for implementado.
+
+Não são criadas rotas artificiais apenas para demonstrar métodos HTTP. Atualmente, `POST /health` não é suportado e o NestJS responde `404`.
+
+## Status HTTP
+
+As respostas devem usar semanticamente `200 OK`, `201 Created` e `204 No Content` para sucesso, e `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `413 Payload Too Large`, `422 Unprocessable Entity`, `429 Too Many Requests` e `500 Internal Server Error` conforme o caso.
+
+A padronização global de erros será implementada nas Issues #77–#80. Até lá, são utilizados os mecanismos nativos do NestJS; não há um formato de erro customizado garantido.
+
+## Organização
+
+Controllers são a camada de transporte: recebem HTTP, delegam e retornam contratos. Services concentram regras de domínio e não dependem do frontend. Módulos agrupam responsabilidades por domínio. O frontend deve consumir somente estes contratos HTTP e nunca importar módulos internos ou acessar o banco diretamente.
+
+## Versionamento e evolução
+
+O endpoint atual permanece em `/health`. O prefixo `/api/v1` será adotado somente na Issue #81 (RNF-16). Novos endpoints devem:
+
+1. representar um recurso ou operação de domínio real;
+2. declarar método, entrada, saída e status HTTP;
+3. manter controllers finos e services independentes;
+4. validar entradas antes de atingir infraestrutura;
+5. adicionar testes de sucesso, falha e regressão;
+6. atualizar esta documentação sem registrar funcionalidades ainda inexistentes.
+
+Autenticação, usuários, passkeys, TOTP, persistência, PDFs, CORS, headers adicionais e tratamento global de erros serão definidos nas issues próprias.
