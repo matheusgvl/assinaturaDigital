@@ -109,6 +109,8 @@ Copy-Item .env.example .env
 
 O `.env.example` serve como referência compartilhada; o `.env` contém a configuração local e não deve ser versionado. A porta pode ser ajustada no `.env`; quando estiver vazia ou ausente, o backend usa `3000`. Sempre que uma funcionalidade introduzir uma nova variável, a mesma branch deve atualizar o exemplo e a documentação correspondente, sem inserir valores reais.
 
+A auditoria sanitizada de proteção e histórico está registrada em [`docs/RNF-07-AUDIT.md`](docs/RNF-07-AUDIT.md). O `.env.example` é a única exceção permitida ao padrão de ignorar arquivos de ambiente.
+
 ## Processo de desenvolvimento
 
 Cada requisito deve ser trabalhado em sua própria branch e issue, com commits terminados em `Ref #ID`, revisão por Pull Request e merge posterior na `main`. Esta entrega é exclusiva do RNF-01 / Issue #67 e não altera o repositório do frontend.
