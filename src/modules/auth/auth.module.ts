@@ -18,9 +18,11 @@ import { TotpLoginService } from './totp-login.service';
 import { SecurityAlert } from './entities/security-alert.entity';
 import { TotpAlertService } from './totp-alert.service';
 import { PasskeyService } from './passkey.service';
+import { SigningKeysModule } from '../documents/signing-keys.module';
 
 @Module({
   imports: [
+    SigningKeysModule,
     TypeOrmModule.forFeature([
       User,
       Session,
