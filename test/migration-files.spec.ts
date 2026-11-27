@@ -25,4 +25,8 @@ describe('migration fixture', () => {
     expect(content).toContain('rnf09_migration_fixture');
     expect(content).not.toMatch(/password|secret|token|private.?key|pdf/i);
   });
+
+  it('uses a timestamp identifier and descriptive migration name', () => {
+    expect(fixturePath).toMatch(/\d{13}-[A-Za-z0-9]+\.ts$/);
+  });
 });
