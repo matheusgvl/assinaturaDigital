@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { createDecipheriv, createHash, generateKeyPairSync, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { inflateSync } from 'node:zlib';
-import { degrees, PDFDocument } from 'pdf-lib';
+import { degrees, PDFDocument, PDFName, PDFRef, PDFString } from 'pdf-lib';
 import forge from 'node-forge';
 import request from 'supertest';
 import type { Response as SuperagentResponse } from 'superagent';
@@ -227,8 +227,12 @@ describe('document signing flow (integration)', () => {
     }
   });
 
-  it('rejects an active PDF payload before parsing it', async () => {
-    const activePdf = Buffer.from('%PDF-1.7\n/JavaScript (alert)\n%%EOF');
+  it('rejects active dictionaries in indirect objects and compressed object streams', async () => {
+    const document = await PDFDocument.create();
+    document.addPage();
+    const action = document.context.obj({ S: PDFName.of('JavaScript'), JS: PDFString.of('') });
+    document.catalog.set(PDFName.of('OpenAction'), document.context.register(action));
+    const activePdf = Buffer.from(await document.save({ useObjectStreams: true }));
     await request(app.getHttpServer())
       .post('/api/v1/documents/sign')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -241,6 +245,25 @@ describe('document signing flow (integration)', () => {
         expect(body.message).toBe('The uploaded file is not an accepted PDF');
         expect(JSON.stringify(body)).not.toContain('JavaScript');
       });
+    await request(app.getHttpServer()).post('/api/v1/documents/verify')
+      .attach('file', activePdf, 'active.pdf').expect(422);
+  });
+
+  it('distinguishes a passive unsigned file from malformed and oversized inputs', async () => {
+    const source = await createPdf();
+    await request(app.getHttpServer()).post('/api/v1/documents/verify')
+      .attach('file', source, 'unsigned.pdf').expect(201, { status: 'not_found' });
+    await request(app.getHttpServer()).post('/api/v1/documents/verify')
+      .attach('file', Buffer.from('%PDF-1.7\n%%EOF'), 'invalid.pdf').expect(422);
+    const broken = await PDFDocument.create();
+    broken.addPage().node.set(PDFName.of('Annots'), PDFRef.of(10000));
+    const bytes = Buffer.from(await broken.save());
+    await request(app.getHttpServer()).post('/api/v1/documents/verify')
+      .attach('file', bytes, 'invalid-reference.pdf').expect(422);
+    const oversized = Buffer.alloc(20 * 1024 * 1024 + 1);
+    source.copy(oversized);
+    await request(app.getHttpServer()).post('/api/v1/documents/verify')
+      .attach('file', oversized, 'oversized.pdf').expect(413);
   });
 
   it('rate-limits repeated public verification requests per IP', async () => {
@@ -248,7 +271,7 @@ describe('document signing flow (integration)', () => {
       'DELETE FROM "auth_rate_limits" WHERE "scope" = $1',
       ['document_verify'],
     );
-    const unsignedPdf = Buffer.from('%PDF-1.7\n%%EOF');
+    const unsignedPdf = await createPdf();
     for (let attempt = 0; attempt < 30; attempt += 1) {
       await request(app.getHttpServer())
         .post('/api/v1/documents/verify')
@@ -272,7 +295,7 @@ describe('document signing flow (integration)', () => {
       'DELETE FROM "auth_rate_limits" WHERE "scope" = $1',
       ['document_verify'],
     );
-    const unsignedPdf = Buffer.from('%PDF-1.7\n%%EOF');
+    const unsignedPdf = await createPdf();
     const responses = await Promise.all(
       Array.from({ length: 40 }, () =>
         request(app.getHttpServer())
