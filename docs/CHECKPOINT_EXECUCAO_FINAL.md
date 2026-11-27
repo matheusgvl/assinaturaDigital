@@ -18,11 +18,13 @@ No commit `6cfee61`, `npx tsc --noEmit`, `npm run lint`, `npm run build`, `git d
 
 Os PRs [#148](https://github.com/matheusgvl/assinaturaDigital/pull/148) e [#149](https://github.com/matheusgvl/assinaturaDigital/pull/149) publicam, respectivamente, os campos #56 e a trilha append-only #55. A trilha foi testada com um papel PostgreSQL restrito e também com o proprietário da migration. O PR [#151](https://github.com/matheusgvl/assinaturaDigital/pull/151) publica #58. Seu E2E confirmou IP novo, ativação e desativação de TOTP, troca de senha, leitura e remoção do segredo no banco isolado.
 
+O frontend recebeu o PR [#34](https://github.com/matheusgvl/assinaturaDigitalFront/pull/34), que envia senha atual e TOTP ao endpoint real de desativação e encerra a sessão após a revogação. O backend recebeu o PR [#152](https://github.com/matheusgvl/assinaturaDigital/pull/152), com TypeORM 0.3.31 e overrides compatíveis. `npm audit --json` passou a reportar zero vulnerabilidades nesse branch.
+
 Em `assinatura_final_migrations`, descartável e distinto da demonstração, as 17 migrations da integração local foram aplicadas do zero, a última foi revertida e reaplicada, depois todas foram revertidas e aplicadas novamente. O rollback completo deixou zero tabelas de domínio, a reaplicação voltou a registrar 17 migrations, `document_signatures` não contém coluna de PDF ou `bytea`, e a FK de `known_login_ips` rejeitou referência a usuário inexistente.
 
 ## Trabalho pendente imediato
 
-1. Acompanhar checks e revisão dos PRs #148 a #151, sem mesclá-los diretamente.
+1. Acompanhar revisão dos PRs #148 a #152 e #34, sem mesclá-los diretamente. Todos os checks consultados estão aprovados, mas não há decisão de revisão registrada.
 2. Após a integração de #150, abrir a integração de #63 diretamente contra `main` sem reescrever o histórico.
 3. Completar a matriz de 95 requisitos, a revisão de segurança e os relatórios a partir das evidências recuperadas.
 4. Repetir a homologação consolidada somente após as integrações aprovadas.
