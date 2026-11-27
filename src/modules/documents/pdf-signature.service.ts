@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { degrees, rgb, StandardFonts } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { P12Signer } from '@signpdf/signer-p12';
 import signpdf from '@signpdf/signpdf';
 import forge from 'node-forge';
 import { createHash } from 'node:crypto';
 import { resolveSealPlacement, SEAL_HEIGHT, SEAL_WIDTH } from './pdf-seal-placement';
+import { loadPassivePdf } from './pdf-structure';
 
 export type PdfSignatureInspection = {
   present: boolean;
@@ -15,7 +16,7 @@ export type PdfSignatureInspection = {
 };
 
 const BYTE_RANGE = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/;
-const CONTENTS = /\/Contents\s*<([0-9a-fA-F\s]+)>/;
+const CONTENTS = /^<([0-9a-fA-F\s]+)>$/;
 
 type ForgeAttribute = {
   value: [{ value: string }, { value: Array<{ value: string }> }];
@@ -56,7 +57,7 @@ export class PdfSignatureService {
     documentHash: string,
     signedAt: Date,
   ): Promise<Buffer> {
-    const document = await PDFDocument.load(original, { updateMetadata: false });
+    const document = await loadPassivePdf(original);
     const pages = document.getPages();
     const page = pages[pageNumber - 1];
     if (!page) throw new Error('page out of range');
@@ -116,26 +117,32 @@ export class PdfSignatureService {
   inspect(pdf: Buffer): PdfSignatureInspection {
     const text = pdf.toString('latin1');
     const byteRange = text.match(BYTE_RANGE);
-    const contents = text.match(CONTENTS);
-    if (!byteRange || !contents) return { present: false, valid: false };
+    if (!byteRange) return { present: false, valid: false };
 
     try {
       const ranges = byteRange.slice(1).map(Number);
       if (
+        !ranges.every(Number.isSafeInteger) ||
         ranges[0] !== 0 ||
         ranges[1] <= 0 ||
         ranges[2] <= ranges[1] ||
         ranges[3] <= 0 ||
         ranges[2] + ranges[3] !== pdf.length
       ) return { present: true, valid: false };
+      const contents = pdf.toString('latin1', ranges[1], ranges[2]).match(CONTENTS);
+      if (!contents) return { present: true, valid: false };
       const signedBytes = Buffer.concat([
         pdf.subarray(ranges[0], ranges[0] + ranges[1]),
         pdf.subarray(ranges[2], ranges[2] + ranges[3]),
       ]);
-      const signatureHex = contents[1].replace(/\s/g, '').replace(/(?:00)+$/i, '');
-      const cms = forge.pkcs7.messageFromAsn1(
-        forge.asn1.fromDer(Buffer.from(signatureHex, 'hex').toString('binary')),
-      );
+      const signatureHex = contents[1].replace(/\s/g, '');
+      if (signatureHex.length % 2 !== 0) return { present: true, valid: false };
+      const input = forge.util.createBuffer(Buffer.from(signatureHex, 'hex').toString('binary'));
+      const envelope = forge.asn1.fromDer(input, { strict: true, parseAllBytes: false });
+      if (Buffer.from(input.bytes(), 'latin1').some((byte) => byte !== 0)) {
+        return { present: true, valid: false };
+      }
+      const cms = forge.pkcs7.messageFromAsn1(envelope);
       const capture = cms.rawCapture as {
         authenticatedAttributes?: ForgeAttribute[];
         signature?: string;

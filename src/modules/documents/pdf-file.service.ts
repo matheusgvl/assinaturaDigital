@@ -16,17 +16,11 @@ function invalidPdf(): ApiException {
 @Injectable()
 export class PdfFileService {
   validate(file: Express.Multer.File): Buffer {
-    if (!file?.buffer || file.size <= 0 || file.size > MAX_PDF_BYTES) {
+    if (!file?.buffer || file.buffer.length !== file.size || file.size <= 0 || file.size > MAX_PDF_BYTES) {
       throw invalidPdf();
     }
 
     if (file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
-      throw invalidPdf();
-    }
-
-    // Active PDF actions are not needed by this application and are rejected
-    // before pdf-lib parses the input.
-    if (/\/(?:JavaScript|JS|AA)\b/i.test(file.buffer.toString('latin1'))) {
       throw invalidPdf();
     }
 

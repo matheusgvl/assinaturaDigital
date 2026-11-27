@@ -1,4 +1,5 @@
 import { PdfSignatureService } from './pdf-signature.service';
+import { loadPassivePdf } from './pdf-structure';
 import { PDF_HEADER_LIMIT, PDF_LIMIT, PDF_OUTPUT_LIMIT, P12_LIMIT, type PdfJob } from './pdf-worker-protocol';
 
 /** Lê um único trabalho, limitado em bytes, sem consultar arquivos ou rede. */
@@ -40,6 +41,7 @@ async function main() {
         if (result.length > PDF_OUTPUT_LIMIT) throw new Error();
         process.stdout.write(result);
       } else if (job.operation === 'inspect') {
+        await loadPassivePdf(pdf);
         const { present, valid } = service.inspect(pdf);
         process.stdout.write(JSON.stringify({ present, valid }));
       } else {
