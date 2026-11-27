@@ -59,6 +59,7 @@ function pdfParser(
 describe('document signing flow (integration)', () => {
   let app: INestApplication;
   let accessToken: string;
+  let accountId: string;
 
   jest.setTimeout(30000);
 
@@ -75,15 +76,37 @@ describe('document signing flow (integration)', () => {
     );
 
     const email = `documents-${Date.now()}@example.com`;
-    await request(app.getHttpServer())
+    const account = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
       .send({ name: 'Documento User', email, password: 'Strong-password9' })
       .expect(201);
+    accountId = account.body.id as string;
     const login = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email, password: 'Strong-password9' })
       .expect(200);
     accessToken = login.body.accessToken as string;
+  });
+
+  it('returns a generic error when encrypted signing material fails authentication', async () => {
+    const keys = app.get(DataSource).getRepository(SigningKey);
+    const { authTag } = await keys.findOneOrFail({
+      where: { userId: accountId }, select: { authTag: true },
+    });
+    const changedTag = Buffer.from(authTag);
+    changedTag[0] ^= 1;
+    await keys.update({ userId: accountId }, { authTag: changedTag });
+    try {
+      const pdf = await createPdf();
+      const error = await request(app.getHttpServer()).post('/api/v1/documents/sign')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .field('page', '1').field('x', '10').field('y', '10')
+        .attach('file', pdf, 'simple.pdf').expect(500);
+      expect(error.body.message).toBe('Document signing is not configured');
+      expect(Object.keys(error.body).sort()).toEqual(['code', 'message', 'path', 'timestamp']);
+    } finally {
+      await keys.update({ userId: accountId }, { authTag });
+    }
   });
 
   afterAll(async () => {
@@ -98,7 +121,14 @@ describe('document signing flow (integration)', () => {
         .send({ name: 'RSA fixture', email: `${randomUUID()}@example.test`, password: 'Strong-password9' })
         .expect(201);
       expect(Object.keys(user.body).sort()).toEqual(['email', 'id', 'name']);
-      const row = await keys.findOneByOrFail({ userId: user.body.id as string });
+      const userId = user.body.id as string;
+      const ordinary = await keys.findOneByOrFail({ userId });
+      expect(ordinary.encryptedP12).toBeUndefined();
+      expect(ordinary.iv).toBeUndefined();
+      expect(ordinary.authTag).toBeUndefined();
+      const row = await keys.findOneOrFail({
+        where: { userId }, select: { encryptedP12: true, iv: true, authTag: true },
+      });
       expect(row.iv).toHaveLength(12);
       expect(row.authTag).toHaveLength(16);
       const master = Buffer.from(process.env.PDF_MASTER_KEY_B64!, 'base64');

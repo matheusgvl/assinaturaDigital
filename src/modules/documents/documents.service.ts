@@ -45,11 +45,10 @@ export class DocumentsService {
     }
     const id = randomUUID();
     const signedAt = new Date();
-    const p12 = await this.keys.getP12(user.id, user.name);
+    let signed: Buffer;
     try {
-      let signed: Buffer;
-      try {
-        signed = await this.pdfs.sign(
+      signed = await this.keys.withP12(user.id, user.name, (p12) =>
+        this.pdfs.sign(
           original,
           p12,
           user.name,
@@ -59,28 +58,27 @@ export class DocumentsService {
           id,
           originalHash,
           signedAt,
-        );
-      } catch {
-        throw new ApiException(API_ERROR_CODES.DOCUMENT, HttpStatus.UNPROCESSABLE_ENTITY, SIGNING_FAILURE);
-      }
-      await this.signatures.save(
-        this.signatures.create({
-          id,
-          userId: user.id,
-          originalHash,
-          signedHash: this.files.sha256(signed),
-          signerName: user.name,
-          signedAt,
-          sourceIp,
-          sealPage: dto.page,
-          sealX: dto.x,
-          sealY: dto.y,
-        }),
+        ),
       );
-      return { buffer: signed, fileName: 'documento-assinado.pdf' };
-    } finally {
-      p12.fill(0);
+    } catch (error) {
+      if (error instanceof ApiException) throw error;
+      throw new ApiException(API_ERROR_CODES.DOCUMENT, HttpStatus.UNPROCESSABLE_ENTITY, SIGNING_FAILURE);
     }
+    await this.signatures.save(
+      this.signatures.create({
+        id,
+        userId: user.id,
+        originalHash,
+        signedHash: this.files.sha256(signed),
+        signerName: user.name,
+        signedAt,
+        sourceIp,
+        sealPage: dto.page,
+        sealX: dto.x,
+        sealY: dto.y,
+      }),
+    );
+    return { buffer: signed, fileName: 'documento-assinado.pdf' };
   }
 
   async verify(file: Express.Multer.File, ip: string) {
