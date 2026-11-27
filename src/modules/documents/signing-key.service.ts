@@ -56,7 +56,7 @@ export class SigningKeyService {
 
   /** Prepara a chave RSA individual cifrada antes da transação de cadastro. */
   async prepare(userName: string): Promise<Pick<SigningKey, 'encryptedP12' | 'iv' | 'authTag'>> {
-    const p12 = await createPkcs12(userName);
+    const p12 = await createPkcs12(userName).catch(() => { throw configurationError(); });
     try {
       return this.encrypt(p12);
     } finally {
@@ -73,15 +73,29 @@ export class SigningKeyService {
     await manager.getRepository(SigningKey).insert({ id: randomUUID(), userId, ...encrypted });
   }
 
-  /** Mantém a primeira assinatura de usuários cadastrados antes de REQ-45. */
-  async getP12(userId: string, userName: string): Promise<Buffer> {
-    const existing = await this.keys.findOne({ where: { userId } });
+  /** Disponibiliza o PKCS#12 somente durante a operação interna de assinatura. */
+  async withP12<T>(userId: string, userName: string, operation: (p12: Buffer) => Promise<T>): Promise<T> {
+    const p12 = await this.getP12(userId, userName);
+    try {
+      return await operation(p12);
+    } finally {
+      p12.fill(0);
+    }
+  }
+
+  private async getP12(userId: string, userName: string): Promise<Buffer> {
+    const load = () => this.keys.findOne({
+      where: { userId },
+      select: { encryptedP12: true, iv: true, authTag: true },
+    });
+    const existing = await load();
     if (existing) return this.decrypt(existing);
 
     const encrypted = await this.prepare(userName);
     await this.keys.createQueryBuilder().insert()
       .values({ id: randomUUID(), userId, ...encrypted }).orIgnore().execute();
-    const stored = await this.keys.findOneOrFail({ where: { userId } });
+    const stored = await load();
+    if (!stored) throw configurationError();
     return this.decrypt(stored);
   }
 
@@ -90,6 +104,7 @@ export class SigningKeyService {
     if (!encoded) throw configurationError();
     const key = Buffer.from(encoded, 'base64');
     if (key.length !== 32 || key.toString('base64') !== encoded) {
+      key.fill(0);
       throw configurationError();
     }
     return key;
@@ -97,18 +112,32 @@ export class SigningKeyService {
 
   private encrypt(value: Buffer): Pick<SigningKey, 'encryptedP12' | 'iv' | 'authTag'> {
     const iv = randomBytes(12);
-    const cipher = createCipheriv(AES_ALGORITHM, this.masterKey(), iv);
-    const encryptedP12 = Buffer.concat([cipher.update(value), cipher.final()]);
-    return { encryptedP12, iv, authTag: cipher.getAuthTag() };
+    const master = this.masterKey();
+    try {
+      const cipher = createCipheriv(AES_ALGORITHM, master, iv);
+      const encryptedP12 = Buffer.concat([cipher.update(value), cipher.final()]);
+      return { encryptedP12, iv, authTag: cipher.getAuthTag() };
+    } finally {
+      master.fill(0);
+    }
   }
 
   private decrypt(key: SigningKey): Buffer {
+    const master = this.masterKey();
+    let part: Buffer | undefined;
+    let tail: Buffer | undefined;
     try {
-      const decipher = createDecipheriv(AES_ALGORITHM, this.masterKey(), key.iv);
+      const decipher = createDecipheriv(AES_ALGORITHM, master, key.iv);
       decipher.setAuthTag(key.authTag);
-      return Buffer.concat([decipher.update(key.encryptedP12), decipher.final()]);
+      part = decipher.update(key.encryptedP12);
+      tail = decipher.final();
+      return Buffer.concat([part, tail]);
     } catch {
       throw configurationError();
+    } finally {
+      master.fill(0);
+      part?.fill(0);
+      tail?.fill(0);
     }
   }
 }
