@@ -6,9 +6,12 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap/configure-app';
 import { PasskeyChallenge } from '../src/modules/auth/entities/passkey-challenge.entity';
+import { Passkey } from '../src/modules/auth/entities/passkey.entity';
+import { advancePasskeyCounter } from '../src/modules/auth/passkey-counter';
 
 const ROOT = '/api/v1/auth/passkeys';
 const ORIGIN = 'http://localhost:5173';
+const PASSWORD = 'Test-fixture-password9!';
 
 describe('WebAuthn API', () => {
   let app: INestApplication;
@@ -60,5 +63,52 @@ describe('WebAuthn API', () => {
         .set('Origin', ORIGIN).send({ challengeId: id, credential: {} }).expect(401);
       expect(result.headers['set-cookie']).toBeUndefined();
     }
+  });
+
+  it('stores public credential metadata and isolates device management by owner', async () => {
+    const createUser = async () => {
+      const email = `passkey-${randomUUID()}@example.test`;
+      const user = await request(app.getHttpServer()).post('/api/v1/auth/register')
+        .send({ name: 'WebAuthn fixture', email, password: PASSWORD }).expect(201);
+      const login = await request(app.getHttpServer()).post('/api/v1/auth/login')
+        .send({ email, password: PASSWORD }).expect(200);
+      return { id: user.body.id as string, bearer: `Bearer ${login.body.accessToken}` };
+    };
+    const owner = await createUser();
+    const other = await createUser();
+    const repository = data.getRepository(Passkey);
+    const id = randomUUID();
+    await repository.insert({
+      id, userId: owner.id, name: 'Fixture device', credentialId: randomUUID(),
+      aaguid: randomUUID(), counter: '0', publicKey: Buffer.from([1]), transports: ['internal'],
+    });
+
+    const advances = await Promise.all([
+      data.transaction((manager) => advancePasskeyCounter(manager, { id, counter: '0' }, 1, new Date())),
+      data.transaction((manager) => advancePasskeyCounter(manager, { id, counter: '0' }, 1, new Date())),
+    ]);
+    expect(advances.sort()).toEqual([false, true]);
+    expect(await repository.findOneBy({ id })).toMatchObject({ counter: '1' });
+
+    const list = await request(app.getHttpServer()).get(ROOT)
+      .set('Authorization', owner.bearer).expect(200);
+    expect(list.body).toEqual([{
+      id, name: 'Fixture device', createdAt: expect.any(String),
+      lastUsedAt: expect.any(String), transports: ['internal'],
+    }]);
+    await request(app.getHttpServer()).get(ROOT)
+      .set('Authorization', other.bearer).expect(200, []);
+    await request(app.getHttpServer()).delete(`${ROOT}/${id}`)
+      .set('Authorization', other.bearer).send({ currentPassword: PASSWORD }).expect(404);
+    await request(app.getHttpServer()).delete(`${ROOT}/${id}`)
+      .set('Authorization', owner.bearer).send({ currentPassword: 'different test password' }).expect(401);
+    await request(app.getHttpServer()).put(`${ROOT}/${id}`)
+      .set('Authorization', owner.bearer).send({ name: ' Renamed ', currentPassword: PASSWORD }).expect(204);
+    expect(await repository.findOneBy({ id })).toMatchObject({ name: 'Renamed' });
+    await request(app.getHttpServer()).delete(`${ROOT}/${id}`)
+      .set('Authorization', owner.bearer).send({ currentPassword: PASSWORD }).expect(204);
+    expect(await repository.findOneBy({ id })).toMatchObject({ revokedAt: expect.any(Date) });
+    await request(app.getHttpServer()).get(ROOT)
+      .set('Authorization', owner.bearer).expect(200, []);
   });
 });

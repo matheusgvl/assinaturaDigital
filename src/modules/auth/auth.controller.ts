@@ -7,6 +7,8 @@ import {
   HttpStatus,
   Post,
   Param,
+  ParseUUIDPipe,
+  Put,
   Req,
   Res,
   UseGuards,
@@ -31,7 +33,7 @@ import {
 import { TotpEnrollmentService } from './totp-enrollment.service';
 import { TotpAlertService } from './totp-alert.service';
 import { PasskeyService } from './passkey.service';
-import { PasskeyRegistrationOptionsDto, PasskeyVerificationDto } from './passkey.dto';
+import { PasskeyRegistrationOptionsDto, PasskeyVerificationDto, RenamePasskeyDto } from './passkey.dto';
 
 export const CSRF_TOKEN_COOKIE = 'csrf_token';
 
@@ -277,6 +279,34 @@ export class AuthController {
     setRefreshCookie(response, result.refreshToken);
     setCsrfCookie(response, randomBytes(32).toString('base64url'));
     return { confirmed: true, accessToken: result.accessToken, user: result.user };
+  }
+
+  @Get('passkeys')
+  @UseGuards(JwtAuthGuard)
+  listPasskeys(@Req() request: AuthenticatedRequest) {
+    return this.passkeys.list(request.user.id);
+  }
+
+  @Put('passkeys/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async renamePasskey(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: RenamePasskeyDto,
+  ): Promise<void> {
+    await this.passkeys.manage(request.user, id, dto.currentPassword, request.ip ?? 'unknown', { name: dto.name });
+  }
+
+  @Delete('passkeys/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokePasskey(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: PasskeyRegistrationOptionsDto,
+  ): Promise<void> {
+    await this.passkeys.manage(request.user, id, dto.currentPassword, request.ip ?? 'unknown', { revoke: true });
   }
 
   @Post('alerts/read')
